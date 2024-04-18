@@ -235,9 +235,9 @@ void timerRestart(uint8_t timerNum, uint64_t timeout)
 {
     switch(timerNum)
     {
-        case 0:
+        case TIME_ID:
             /* Fall-through */
-        case 1: 
+        case RSV_ID: 
             esp_timer_restart(*(timerArgsArr[timerNum].timerHndl), timeout);
             break;
         

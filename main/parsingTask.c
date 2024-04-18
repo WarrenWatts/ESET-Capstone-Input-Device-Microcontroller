@@ -198,7 +198,7 @@ bool parseReserve(requestBodyData *reqPtr)
 
 
 bool parseAccessCode(requestBodyData *reqPtr)
-{
+{ /* FIXME : Now that this function is no longer unique, combine/refactor with parseReserve()! */
     static const char fxnNameStr[PARSE_CODE_LEN] = "parseAccessCode()";
     bool status = true;
 
