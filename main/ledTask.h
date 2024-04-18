@@ -23,10 +23,11 @@
 /* Driver Headers */
 #include "driver/gpio.h"
 
+
+
 /* Defines */
 #define INTR_MASK (1ULL << GPIO_NUM_41)
-#define R_LED_MASK (1ULL << GPIO_NUM_38)
-#define G_LED_MASK (1ULL << GPIO_NUM_39)
+#define LED_MASK (1ULL << GPIO_NUM_38) | (1ULL << GPIO_NUM_39)
 
 #define INTR_PIN GPIO_NUM_41
 #define R_LED_PIN GPIO_NUM_38

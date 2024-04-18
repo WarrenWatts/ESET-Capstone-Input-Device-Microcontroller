@@ -24,7 +24,7 @@
 /* Function Declarations */
 extern void startEspnowConfig(void);
 
-/* FreeRTOS API Handle Declarations */
+/* FreeRTOS Declared API Handles */
 extern SemaphoreHandle_t xMtxEspnow;
 extern SemaphoreHandle_t xSemEspnow;
 

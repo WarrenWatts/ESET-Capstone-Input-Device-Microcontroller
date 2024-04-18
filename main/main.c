@@ -34,10 +34,10 @@
 
 
 /* Defining Declarations of Global Constant Strings */
-const char mallocFail[MALLOC_SZ] = "Malloc failed";
-const char heapFail[HEAP_SZ] = "Insufficient heap space for";
-const char mtxFail[MTX_SZ] = "Mutex failed to take key";
-const char rtrnNewLine[NEWLINE_SZ] = "\r\n";
+const char mallocFail[MALLOC_LEN] = "Malloc failed";
+const char heapFail[HEAP_LEN] = "Insufficient heap space for";
+const char mtxFail[MTX_LEN] = "Mutex failed to take key";
+const char rtrnNewLine[NEWLINE_LEN] = "\r\n";
 
 /* Static Function Declarations */
 static void startTzConfig(void);

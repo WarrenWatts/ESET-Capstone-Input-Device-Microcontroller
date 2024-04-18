@@ -36,10 +36,18 @@
 
 
 /* Local Defines */
-#define STATE_SZ 3 // Size for State-related Arrays
-#define TAG_SZ 10
-#define URL_SZ 30
-#define TIME_SZ 3
+#define TIME_LEN (POST_STATE_SZ)
+
+/* Enum for Local Constant String Sizes */
+typedef enum
+{
+    PARSE_RSV_LEN = 15,
+    PARSE_CODE_LEN = 18,
+    DEF_RSV_LEN = 21,
+    DEF_CODE_LEN = 25,
+    URL_LEN,
+    EARLY_FAIL_LEN = 32,
+} localStrLengths;
 
 /* Local Function Declarations */
 static void requestParsingTask(void *pvParameters);
@@ -48,35 +56,39 @@ static parsingFunc parseTime;
 static parsingFunc parseReserve;
 static parsingFunc parseAccessCode;
 
-/* FreeRTOS API Handles */
+/* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xSemParseGuard;
 static SemaphoreHandle_t xSemHTTPGuard;
 static QueueHandle_t xQueueParse;
 
-/* FreeRTOS API Defining Handles */
+/* FreeRTOS Defining API Handles */
 QueueHandle_t xQueueHttp;
 
 /* Reference Declarations of Global Constant Strings */
-extern const char mallocFail[MALLOC_SZ];
-extern const char rtrnNewLine[NEWLINE_SZ];
-extern const char heapFail[HEAP_SZ];
-extern const char mtxFail[MTX_SZ];
+extern const char mallocFail[MALLOC_LEN];
+extern const char rtrnNewLine[NEWLINE_LEN];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
+
+/* Defining Declarations of Global Constant Strings */
+const char queueSendFail[SEND_FAIL_LEN] = "Could not send to ";
+const char queueFullFail[FULL_FAIL_LEN] = " is full";
 
 /* Local String Constants */
-static const char URL[URL_SZ] = "http://172.20.10.3:8000/";
-static const char TAG[TAG_SZ] = "REQ_PARSE";
+static const char URL[URL_LEN] = "http://172.20.10.3:8000/";
+static const char TAG[TAG_LEN_10] = "REQ_PARSE";
+static const char earlyBirdFail[EARLY_FAIL_LEN] = "Request made before time set in";
 
-/* Constant Array of Base Branching URL Paths */
-static const char *urlPaths[STATE_SZ] =
+/* Constant Array of Pointers of Base Branching URL Paths */
+static const char *urlPaths[POST_STATE_SZ] =
 {
     "time/",
     "reserve/",
     "value/",
 };
 
-/* FIXME (Can probably make this a constant and static if it isn't used outside of this context!!!)*/
-/* Array of Pointers to Parsing Functions */
-static const parsingFuncPtr reqParseFuncs[STATE_SZ] =
+/* Constant State Array of Pointers to Functions */
+static const parsingFuncPtr reqParseFuncs[POST_STATE_SZ] =
 {
     parseTime,
     parseReserve,
@@ -102,12 +114,12 @@ void startParsingConfig(void)
 
     if(!(xSemParseGuard = xSemaphoreCreateCounting(SEM_CNT, SEM_CNT)))
     {
-        ESP_LOGW(TAG, "%s xSemParseGuard%s", heapFail, rtrnNewLine);
+        ESP_LOGE(TAG, "%s xSemParseGuard%s", heapFail, rtrnNewLine);
     }
 
     if(!(xQueueParse = xQueueCreate(Q_CNT, sizeof(uint8_t))))
     {
-        ESP_LOGW(TAG, "%s xQueueParse%s", heapFail, rtrnNewLine);
+        ESP_LOGE(TAG, "%s xQueueParse%s", heapFail, rtrnNewLine);
     }
 
     if(!(xSemHTTPGuard = xSemaphoreCreateCounting(SEM_CNT, SEM_CNT)))
@@ -126,16 +138,16 @@ void startParsingConfig(void)
 
 
 
-bool parseTime(requestBodyData *reqPtr) // FIXME restartTimer()???
+bool parseTime(requestBodyData *reqPtr)
 {
     bool status = true;
 
-    reqPtr->jsonStrLen = TIME_SZ;
+    reqPtr->jsonStrLen = TIME_LEN;
     reqPtr->jsonStr = (char*) malloc(sizeof(char) * (reqPtr->jsonStrLen));
 
     if((reqPtr->jsonStr) == NULL)
     {
-        ESP_LOGE(TAG, "Parsing time %s%s", mallocFail, rtrnNewLine);
+        ESP_LOGE(TAG, "parseTime() %s%s", mallocFail, rtrnNewLine);
         status = false;
     }
     else
@@ -150,6 +162,7 @@ bool parseTime(requestBodyData *reqPtr) // FIXME restartTimer()???
 
 bool parseReserve(requestBodyData *reqPtr)
 {
+    static const char fxnNameStr[PARSE_RSV_LEN] = "parseReserve()";
     bool status = true;
 
     if(getTimeBool())
@@ -158,12 +171,12 @@ bool parseReserve(requestBodyData *reqPtr)
         time_t currentTime = time(NULL);
         timeStrSize = snprintf(NULL, 0, "%lld", currentTime);
 
-        reqPtr->jsonStrLen = BASE_RSV_LEN + timeStrSize + 1;
+        reqPtr->jsonStrLen = DEF_RSV_LEN + timeStrSize + 1;
         reqPtr->jsonStr = (char*) malloc(sizeof(char) * (reqPtr->jsonStrLen));
 
         if(reqPtr->jsonStr == NULL)
         {
-            ESP_LOGE(TAG, "Parsing reserve %s%s", mallocFail, rtrnNewLine);
+            ESP_LOGE(TAG, "%s %s%s", fxnNameStr, mallocFail, rtrnNewLine);
             status = false;
         }
         else
@@ -174,7 +187,7 @@ bool parseReserve(requestBodyData *reqPtr)
     }
     else
     {
-        ESP_LOGE(TAG, "Request made before time set%s", rtrnNewLine);
+        ESP_LOGE(TAG, "%s %s%s", earlyBirdFail, fxnNameStr, rtrnNewLine);
         timerRestart(reqPtr->id, DEF_FAIL_TOUT);
         status = false;
     }
@@ -186,29 +199,28 @@ bool parseReserve(requestBodyData *reqPtr)
 
 bool parseAccessCode(requestBodyData *reqPtr)
 {
+    static const char fxnNameStr[PARSE_CODE_LEN] = "parseAccessCode()";
     bool status = true;
 
     if(getTimeBool())
     {
-        reqPtr->jsonStrLen = BASE_CODE_LEN + ACCESS_LEN + 1;
+        reqPtr->jsonStrLen = DEF_CODE_LEN + 1;
         reqPtr->jsonStr = (char*) malloc(sizeof(char) * (reqPtr->jsonStrLen));
 
         if(reqPtr->jsonStr == NULL)
         {
-            ESP_LOGE(TAG, "Parsing code %s%s", mallocFail, rtrnNewLine);
+            ESP_LOGE(TAG, "%s %s%s", fxnNameStr, mallocFail, rtrnNewLine);
             status = false;
         }
         else
         {
             snprintf(reqPtr->jsonStr, reqPtr->jsonStrLen, "{\"accessCode\": \"%ld\"}", \
                     getAccessCode());
-
-            ESP_LOGI(TAG, "String: %s", reqPtr->jsonStr);
         }
     }
     else
     {
-        ESP_LOGE(TAG, "Request made before time set%s", rtrnNewLine);
+        ESP_LOGE(TAG, "%s %s%s", earlyBirdFail, fxnNameStr, rtrnNewLine);
         status = false;
     }
 
@@ -245,12 +257,12 @@ void queuingParseData(uint8_t idVal)
     {
         if(!xQueueSendToBack(xQueueParse, (void*) &idVal, DEF_PEND))
         {
-            ESP_LOGE(TAG, "Could not send to xQueueHTTP%s", rtrnNewLine);
+            ESP_LOGE(TAG, "%sxQueueHTTP%s", queueSendFail, rtrnNewLine);
         }   
     }
     else
     {
-        ESP_LOGW(TAG, "xQueueHTTP is full%s", rtrnNewLine);
+        ESP_LOGE(TAG, "%sxQueueHTTP%s", queueFullFail, rtrnNewLine);
     }
 }
 
@@ -262,13 +274,13 @@ static int8_t queuingHttpData(requestBodyData *reqPtr, int8_t freeHeapCntr)
     {
         if(!xQueueSendToBack(xQueueHttp, (void*) &reqPtr, DEF_PEND))
         {
-            ESP_LOGE(TAG, "Could not send to xQueueHTTP%s", rtrnNewLine);
+            ESP_LOGE(TAG, "%sxQueueHTTP%s", queueSendFail, rtrnNewLine);
             freeHeapCntr = MAX_HEAP;
         }   
     }
     else
     {
-        ESP_LOGW(TAG, "xQueueHTTP is full%s", rtrnNewLine);
+        ESP_LOGE(TAG, "%sxQueueHTTP%s", queueFullFail, rtrnNewLine);
         freeHeapCntr = MAX_HEAP;
     }
 
@@ -295,7 +307,6 @@ void mallocCleanup(requestBodyData *reqPtr, int8_t mallocCnt)
             free(reqPtr->jsonStr);
             /* Fall-through */
         case LOW_HEAP:
-            //timerRestart(reqPtr->id);
             free(reqPtr);
             break;
         default:
@@ -309,7 +320,7 @@ static void requestParsingTask(void *pvParameters)
 {
     while(xQueueParse == NULL) 
     {
-        vTaskDelay(QUICK_DELAY);
+        vTaskDelay(SEC_DELAY);
     }
 
     while(true)
@@ -324,13 +335,14 @@ static void requestParsingTask(void *pvParameters)
 
         if(dataPtr == NULL)
         {
-            ESP_LOGE(TAG, "Request body data %s%s", mallocFail, rtrnNewLine);
+            ESP_LOGE(TAG, "requestParsingTask() %s%s", mallocFail, rtrnNewLine);
             timerRestart(idVal, DEF_FAIL_TOUT);
             continue;
         }
         dataPtr->id = idVal;
-        
-        if(reqParseFuncs[dataPtr->id](dataPtr))
+        bool heapFail = false;
+
+        if(reqParseFuncs[idVal](dataPtr))
         {
             if(urlToString(dataPtr))
             {
@@ -339,14 +351,20 @@ static void requestParsingTask(void *pvParameters)
             else
             {
                 freeHeapCntr = HIGH_HEAP;
+                heapFail = true;
             }
         }
         else
         {
             freeHeapCntr = LOW_HEAP;
+            heapFail = true;
+        }
+        
+        if(heapFail)
+        {
+            timerRestart(idVal, DEF_FAIL_TOUT);
         }
 
         mallocCleanup(dataPtr, freeHeapCntr);
-
     }
 }

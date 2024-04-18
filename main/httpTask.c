@@ -38,8 +38,12 @@
 
 
 /* Local Defines */
-#define TAG_SZ 9
 #define TIMER_SZ 2 /* Size of Timer Args Array */
+#define HTTP_TOUT 250               /* Time in milliseconds*/
+#define RES_DEF_TOUT 60000000       /* Time in microseconds*/
+#define TIME_DEF_TOUT 86400000000   //  |                  
+#define RES_FAIL_TOUT 20000000      //  |
+#define TIME_FAIL_TOUT 15000000     //  V
 
 /* Static Function Declarations */
 static void oneshotCallback(void *args);
@@ -48,42 +52,56 @@ static void startRtosHttpConfig(void);
 static bool queuingUartTxData(cJSON *ptr, bool memSafe);
 static esp_err_t postRespHndlr(esp_http_client_event_handle_t event);
 
-/* */
-extern QueueHandle_t xQueueHttp;
-
-/* */
+/* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xSemUartTxGuard;
 
-/* */
+/* FreeRTOS Reference API Handles */
+extern QueueHandle_t xQueueHttp;
+
+/* FreeRTOS Defining API Handles */
 QueueHandle_t xQueueUartTx;
 
-/* */
+/* ESP Timer Handles */
 static esp_timer_handle_t reserveRequest;
 static esp_timer_handle_t timeRequest;
 
-/* */
-extern const char rtrnNewLine[NEWLINE_SZ];
-extern const char heapFail[HEAP_SZ];
-extern const char mtxFail[MTX_SZ];
+/* Reference Declarations of Global Constant Strings */
+extern const char rtrnNewLine[NEWLINE_LEN];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
+extern const char queueSendFail[SEND_FAIL_LEN];
+extern const char queueFullFail[FULL_FAIL_LEN];
 
-/* */
-static const char TAG[TAG_SZ] = "ESP_HTTP";
+/* Local Constant Logging String */
+static const char TAG[TAG_LEN_9] = "ESP_HTTP";
 
-/* */
+/* Constant Array of timerArgsStructs */
 static const timerArgsStruct timerArgsArr[TIMER_SZ] =
 {
-    {0, &timeRequest},
-    {1, &reserveRequest},
+    {TIME_ID, &timeRequest},
+    {RSV_ID, &reserveRequest},
 };
 
 
-// FIXME (ADD INITIALIZE CHECK)
+
 void startHttpConfig(void)
 {
+    static bool initialized = false;
+
+    /* To prevent double initialization */
+    if (initialized)
+    {
+        return;
+    }
+    else
+    {
+        initialized = true;
+    }
+
     esp_timer_create_args_t oneshotTimeArgs = 
     {
         .callback = oneshotCallback,
-        .arg = (void*) &timerArgsArr[0],
+        .arg = (void*) &timerArgsArr[TIME_ID],
         .name = "oneshot",
     };
     ESP_ERROR_CHECK(esp_timer_create(&oneshotTimeArgs, &timeRequest));
@@ -91,7 +109,7 @@ void startHttpConfig(void)
     esp_timer_create_args_t oneshotReserveArgs = 
     {
         .callback = oneshotCallback,
-        .arg = (void*) &timerArgsArr[1],
+        .arg = (void*) &timerArgsArr[RSV_ID],
         .name = "oneshot",
     };
     ESP_ERROR_CHECK(esp_timer_create(&oneshotReserveArgs, &reserveRequest));
@@ -105,12 +123,12 @@ static void startRtosHttpConfig(void)
 {
     if(!(xQueueUartTx = xQueueCreate(Q_CNT, sizeof(requestBodyData*))))
     {
-        ESP_LOGW(TAG, "%s Queue%s", heapFail, rtrnNewLine); //FIXME (MORE SPECIFIC!!!)
+        ESP_LOGW(TAG, "%s xQueueUartTx %s", heapFail, rtrnNewLine);
     }
 
     if(!(xSemUartTxGuard = xSemaphoreCreateCounting(SEM_CNT, SEM_CNT)))
     {
-        ESP_LOGW(TAG, "%s Semaphore%s", heapFail, rtrnNewLine); //FIXME (MORE SPECIFIC!!!)
+        ESP_LOGW(TAG, "%s xSemUartTxGuard %s", heapFail, rtrnNewLine);
     }
 
     xTaskCreatePinnedToCore(&xHttpTask, "HTTP_TASK", STACK_DEPTH, 0, HTTP_PRIO, 0, 0);
@@ -131,13 +149,13 @@ static bool queuingUartTxData(cJSON *ptr, bool memSafe)
     {
         if(!xQueueSendToBack(xQueueUartTx, (void*) &ptr, DEF_PEND))
         {
-            ESP_LOGE(TAG, "Could not send to queue%s", rtrnNewLine); //FIXME BE MORE SPECIFIC
+            ESP_LOGE(TAG, "%sxQueueUartTx%s", queueSendFail, rtrnNewLine);
             memSafe = false;
         }   
     }
     else
     {
-        ESP_LOGW(TAG, "Queue is full%s", rtrnNewLine); //FIXME BE MORE SPECIFIC
+        ESP_LOGW(TAG, "xQueueUartTx%s%s", queueFullFail, rtrnNewLine);
         memSafe = false;
     }
 
@@ -151,7 +169,6 @@ static esp_err_t postRespHndlr(esp_http_client_event_handle_t event)
     bool memSafe = true;
     if((event->event_id) == HTTP_EVENT_ON_DATA)
     {
-        ESP_LOGI(TAG, "In Post Req%s", rtrnNewLine); // REMOVE
         cJSON *responsePtr = cJSON_ParseWithLength(event->data, \
                                                         event->data_len);
 
@@ -159,8 +176,6 @@ static esp_err_t postRespHndlr(esp_http_client_event_handle_t event)
 
         cJSON *responseCode = cJSON_GetObjectItemCaseSensitive(responsePtr, \
                                                                     "responseCode");
-
-        ESP_LOGI(TAG, "RESPONSE CODE: %d", responseCode->valueint); // REMOVE
         
         if(!(cJSON_IsNumber(responseCode)) ||
             !(cJSON_IsNumber(responseId)))
@@ -172,12 +187,11 @@ static esp_err_t postRespHndlr(esp_http_client_event_handle_t event)
         
         switch(responseCode->valueint)
         {
-            /* Fall-through */
-            case 1:
-            /* Fall-through */
-            case 2:
-            /* Fall-through */
-            case 7:
+            case VALID_RESP:
+                /* Fall-through */
+            case INVALID_RESP:
+                /* Fall-through */
+            case NO_RSV_RESP:
                 memSafe = queuingUartTxData(responsePtr, memSafe);
                 break;
             
@@ -202,18 +216,16 @@ static void oneshotCallback(void *args)
 {
     uint64_t delayTime;
     timerArgsStruct *timerArgsPtr = (timerArgsStruct*) args;
-    ESP_LOGI(TAG, "I GOT HERE TIMER #:%d", timerArgsPtr->timerNum);
+
     if (!wifiCheckStatus())
     {
         delayTime = (timerArgsPtr->timerNum == 0) ? TIME_DEF_TOUT : RES_DEF_TOUT;
-        ESP_LOGI(TAG, "Timer %d is Queuing!%s", (timerArgsPtr->timerNum), rtrnNewLine);
         queuingParseData(timerArgsPtr->timerNum);
     }
     else
     {
         delayTime = (timerArgsPtr->timerNum == 0) ? TIME_FAIL_TOUT : RES_FAIL_TOUT;
     }
-    
     esp_timer_start_once(*(timerArgsPtr->timerHndl), delayTime);
 }
 
@@ -224,9 +236,8 @@ void timerRestart(uint8_t timerNum, uint64_t timeout)
     switch(timerNum)
     {
         case 0:
-        /* Fall-through */
-        case 1: // DEF_FAIL_TOUT
-        /* Fall-through */
+            /* Fall-through */
+        case 1: 
             esp_timer_restart(*(timerArgsArr[timerNum].timerHndl), timeout);
             break;
         
@@ -261,7 +272,6 @@ static void xHttpTask(void *pvParameters)
         };
 
         esp_http_client_handle_t client = esp_http_client_init(&postReqConfig);
-        ESP_LOGI(TAG, "Sending: %s%s", dataPtr->jsonStr, rtrnNewLine); // REMOVE
         esp_http_client_set_post_field(client, dataPtr->jsonStr, (dataPtr->jsonStrLen) - 1);
         esp_http_client_set_header(client, "Content-Type", "application/json");
 

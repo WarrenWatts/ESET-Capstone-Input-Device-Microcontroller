@@ -21,14 +21,12 @@
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
 
+
+
 /* Defines */
-#define QUICK_DELAY pdMS_TO_TICKS(1000)
-#define BASE_RSV_LEN 21
-#define BASE_CODE_LEN 18
-#define ACCESS_LEN 7
-
-
-extern QueueHandle_t xQueueHttp;
+#define POST_STATE_SZ 3 /* Size for POST Request State-related Arrays */
+#define SEND_FAIL_LEN 19
+#define FULL_FAIL_LEN 9
 
 /* Typedef Struct for HTTP Request Body Data */
 typedef struct 
@@ -41,6 +39,19 @@ typedef struct
     int32_t accessCode;
 } requestBodyData;
 
+/* Function Declarations */
+extern void startParsingConfig(void);
+extern void mallocCleanup(requestBodyData *reqPtr, int8_t mallocCnt);
+extern void queuingParseData(uint8_t idVal);
+extern void giveSemHttpGuard(void);
+
+/* FreeRTOS Declared API Handles */
+extern QueueHandle_t xQueueHttp;
+
+/* Declaration of Global Constant Strings */
+extern const char queueSendFail[SEND_FAIL_LEN];
+extern const char queueFullFail[FULL_FAIL_LEN];
+
 /* Enum for Heap Sizes */
 typedef enum
 {
@@ -50,12 +61,8 @@ typedef enum
     NO_HEAP,
 } heapSize;
 
+/* Typedefs for Pointer to Function and Function */
 typedef bool (*parsingFuncPtr)(requestBodyData* reqPtr);
 typedef bool (parsingFunc)(requestBodyData* reqPtr);
-
-extern void startParsingConfig(void);
-extern void mallocCleanup(requestBodyData *reqPtr, int8_t mallocCnt);
-extern void queuingParseData(uint8_t idVal);
-extern void giveSemHttpGuard(void);
 
 #endif /* PARSINGTASK_H_*/

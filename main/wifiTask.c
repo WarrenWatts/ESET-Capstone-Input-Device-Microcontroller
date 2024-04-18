@@ -29,29 +29,26 @@
 
 
 
-/* Local Defines */
-#define TAG_SZ 9
-
-/* Static Function Declarations */
-static void wifiConnectHndlr(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
-static void wifiDisconnectHndlr(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+/* Local Function Declarations */
+static void xWifiTask(void *pvParameters);
 static void startWifiRtosConfig(void);
 static void setConnectCnt(uint8_t newCount);
 static uint8_t getConnectCnt(void);
-static void xWifiTask(void *pvParameters);
+static void wifiConnectHndlr(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
+static void wifiDisconnectHndlr(void *event_handler_arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
 
-/* FreeRTOS API Handles */
+/* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xSemWifiStatus;
 static SemaphoreHandle_t xSemDisconnect;
 static SemaphoreHandle_t xMtxConnectCnt;
 
 /* Reference Declarations of Global Constant Strings */
-extern const char heapFail[HEAP_SZ];
-extern const char mtxFail[MTX_SZ];
-extern const char rtrnNewLine[NEWLINE_SZ];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
+extern const char rtrnNewLine[NEWLINE_LEN];
 
-/* Static Constant Logging String */
-static const char TAG[TAG_SZ] = "ESP_WIFI";
+/* Local Constant Logging String */
+static const char TAG[TAG_LEN_9] = "ESP_WIFI";
 
 /* Counter of Wi-Fi Connection Fails */
 static uint8_t failConnectCnt = 0;
@@ -246,7 +243,7 @@ static uint8_t getConnectCnt(void)
     }
     else
     {
-        ESP_LOGE(TAG, "%s%s", mtxFail, rtrnNewLine);
+        ESP_LOGE(TAG, "xMtxConnectCnt %s in getConnectCnt()%s", mtxFail, rtrnNewLine);
     }
 
     return localFailCount;
@@ -273,7 +270,7 @@ static void setConnectCnt(uint8_t newCount)
     }
     else
     {
-        ESP_LOGE(TAG, "%s in setConnectCnt()%s", mtxFail, rtrnNewLine);
+        ESP_LOGE(TAG, "xMtxConnectCnt %s in setConnectCnt()%s", mtxFail, rtrnNewLine);
     }
 }
 

@@ -29,21 +29,17 @@
 /* Other Headers */
 #include "cJSON.h"
 
-/* Defines */
-#define TXD_PIN 17
-#define RXD_PIN 18
-#define RTS_PIN (UART_PIN_NO_CHANGE)
-#define CTS_PIN (UART_PIN_NO_CHANGE)
 
-#define UART_PORT 1
-#define UART_BAUD_RATE 115200
-#define BUF_SIZE 256
+
+/* Defines */
 #define READ_DELAY pdMS_TO_TICKS(100)
 
+/* Function Declarations */
 extern void startUartConfig(void);
 extern bool getTimeBool(void);
 int32_t getAccessCode(void);
 
+/* Typedefs for Pointer to Function and Function */
 typedef char* (*printingFuncPtr)(cJSON *responsePtr);
 typedef char* (printingFunc)(cJSON *responsePtr);
 

@@ -19,14 +19,14 @@
 
 /* Defines */
 #define SSID "Warren iPhone"
-#define PASS "Warren123"
+#define PASS "Warren123" /* Will be changing... */
 
 #define MAX_ATMPT 11
 #define DFLT_CHNL 11
 #define WIFI_PRIO 19
 
 #define FIRST_11_DELAY pdMS_TO_TICKS(20)
-#define DEF_DELAY pdMS_TO_TICKS(1000)
+#define DEF_DELAY pdMS_TO_TICKS(5000)
 
 /* Function Declarations */
 extern void startWifiConfig(void);

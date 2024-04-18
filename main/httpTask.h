@@ -19,22 +19,35 @@
 /* Local Headers */
 #include "parsingTask.h"
 
+
+
+/* Defines */
 #define HTTP_PRIO 19
+#define DEF_FAIL_TOUT 20000000 /* Time in microseconds */
 
-#define HTTP_TOUT 250
-#define RES_DEF_TOUT 60000000
-#define TIME_DEF_TOUT 86400000000
-
-#define RES_FAIL_TOUT 20000000
-#define TIME_FAIL_TOUT 15000000
-#define DEF_FAIL_TOUT 20000000
-
+/* Function Declarations */
 extern void startHttpConfig(void);
 extern void timerRestart(uint8_t timerNum, uint64_t timeout);
 extern void giveSemUartTxGuard(void);
 
-
+/* FreeRTOS Declared API Handles */
 extern QueueHandle_t xQueueUartTx;
+
+/* Enum for POST Response, Response Code Values */
+typedef enum
+{
+    VALID_RESP = 1,
+    INVALID_RESP,
+    NO_RSV_RESP = 7,
+} respCodeVals;
+
+/* Enum for POST Request/Response ID Values */
+typedef enum
+{
+    TIME_ID, /* ID values correlate to Timer ID values */
+    RSV_ID,
+    CODE_ID,
+} respIdVals;
 
 /* Typedef Struct for ESP-IDF Timers */
 typedef struct 

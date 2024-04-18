@@ -44,12 +44,30 @@
 
 
 /* Local Defines */
-#define NO_RSV_LEN 12 // FIXME 
-#define TAG_SZ 8
 #define TX_BUF_SZ 4
+#define RX_BUF_SZ 256
+
+#define UART_PORT 1
+#define UART_BAUD_RATE 115200
+
+#define TXD_PIN 17
+#define RXD_PIN 18
+#define RTS_PIN (UART_PIN_NO_CHANGE)
+#define CTS_PIN (UART_PIN_NO_CHANGE)
+
 #define MICRO_SEC_FACTOR 1000000
 
-/* Static Function Declarations */
+/* Enum for Local Constant String Sizes */
+typedef enum
+{
+    CODE_LEN = 7, /* Access Code String Size () */
+    RSV_TIME_LEN, /* Size of Meridiem Time String */
+    TIME_LEN = 11, /* Size of UART Passed Time String */
+    RSVTION_LEN,
+    NO_RSV_LEN = 26,
+} localStrLengths;
+
+/* Local Function Declarations */
 static void xUartRxTask(void *pvParameters);
 static void xUartTxTask(void *pvParameters);
 static void setAccessCode(char *buffer);
@@ -62,35 +80,37 @@ static printingFunc printTime;
 static printingFunc printValid;
 static printingFunc printReserve;
 
-/* */
+/* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xMtxTimeBool;
 static SemaphoreHandle_t xMtxAccessCode;
 static SemaphoreHandle_t xMtxParanoid;
 static QueueHandle_t xQueueUartRx;
 
-/* */
+/* FreeRTOS Reference API Handles */
 extern QueueHandle_t xQueueUartTx;
 extern SemaphoreHandle_t xMtxEspnow;
 extern SemaphoreHandle_t xSemEspnow;
 
-/* */
-extern const char mallocFail[MALLOC_SZ];
-extern const char heapFail[HEAP_SZ];
-extern const char mtxFail[MTX_SZ];
-extern const char rtrnNewLine[NEWLINE_SZ];
+/* Reference Declarations of Global Constant Strings */
+extern const char mallocFail[MALLOC_LEN];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
+extern const char rtrnNewLine[NEWLINE_LEN];
 
-/* */
-static const char noRsv[NO_RSV_LEN] = "Reservation"; // POSSIBLY REMOVE ME
-static const char TAG1[TAG_SZ] = "UART_RX";
-static const char TAG2[TAG_SZ] = "UART_TX";
+/* Local String Constants */
+static const char TAG1[TAG_LEN_8] = "UART_RX";
+static const char TAG2[TAG_LEN_8] = "UART_TX";
+static const char noRsvStr[RSVTION_LEN] = "Reservation";
 
-/* */
+
+/* Boolean for System Time if Set */
 static bool timeSetBool = false;
 
+/* Value of Access Code in Integer Form */
 static int32_t accessCode = 0;
 
-/* */
-printingFuncPtr respPrintFuncs[3] = // FIXME (MAGIC NUMBER!!!)
+/* Constant State Array of Pointers to Functions */
+printingFuncPtr respPrintFuncs[POST_STATE_SZ] =
 {
     printTime,      // ID: 0
     printReserve,   // ID: 1
@@ -99,9 +119,20 @@ printingFuncPtr respPrintFuncs[3] = // FIXME (MAGIC NUMBER!!!)
 
 
 
-// FIX ME (ADD Initialized Check)
 void startUartConfig(void)
 {
+    static bool initialized = false;
+
+    /* To prevent double initialization */
+    if (initialized)
+    {
+        return;
+    }
+    else
+    {
+        initialized = true;
+    }
+
     uart_config_t uartConfig = {
         .baud_rate = UART_BAUD_RATE,
         .data_bits = UART_DATA_8_BITS,
@@ -112,7 +143,7 @@ void startUartConfig(void)
     };
     int intrAllocFlags = 0;
 
-    ESP_ERROR_CHECK(uart_driver_install(UART_PORT, BUF_SIZE, 0, TX_BUF_SZ, &xQueueUartRx, intrAllocFlags));
+    ESP_ERROR_CHECK(uart_driver_install(UART_PORT, RX_BUF_SZ, 0, TX_BUF_SZ, &xQueueUartRx, intrAllocFlags));
     ESP_ERROR_CHECK(uart_param_config(UART_PORT, &uartConfig));
     ESP_ERROR_CHECK(uart_set_pin(UART_PORT, TXD_PIN, RXD_PIN, RTS_PIN, CTS_PIN));
 
@@ -146,7 +177,7 @@ static void startUartRtosConfig(void)
 
 bool getTimeBool(void)
 {
-    bool localTimeSetBool = NULL; // FIXME (MAY NOT DO WHAT I THINK IT DOES) DEFINITELY FIXME
+    bool localTimeSetBool = false;
     if(xSemaphoreTake(xMtxTimeBool, DEF_PEND))
     {
         localTimeSetBool = timeSetBool;
@@ -217,7 +248,7 @@ static bool espnowMtxHndlr(void)
 char* printTime(cJSON *responsePtr)
 {
     char *timeStr = NULL;
-    size_t timeStrSize = 11;
+    size_t timeStrSize = TIME_LEN;
     cJSON *serverTimePtr = cJSON_GetObjectItemCaseSensitive(responsePtr, "serverTime");
     struct tm *timePtr = setTime(serverTimePtr->valueint);
 
@@ -247,7 +278,7 @@ char* printValid(cJSON *responsePtr)
     char *placehldr = NULL;
     cJSON *responseCode = cJSON_GetObjectItemCaseSensitive(responsePtr, "responseCode");
 
-    placehldr = ((responseCode->valueint) == 1) ? "23\r" : "24\r"; // FIXME (MAGIC NUMBER)
+    placehldr = ((responseCode->valueint) == VALID_RESP) ? "23\r" : "24\r";
 
     validStr = (char*) malloc(sizeof(char) * (strlen(placehldr) + 1));
     if(validStr != NULL)
@@ -266,7 +297,7 @@ char* printValid(cJSON *responsePtr)
 
 static char* reserveTimesHndlr(cJSON *reserveTime)
 {
-    size_t timeStrSize = 8;
+    size_t timeStrSize = RSV_TIME_LEN;
     char *reserveTimeStr = NULL;
     time_t rsvTime = reserveTime->valueint;
 
@@ -289,28 +320,33 @@ static char* reserveTimesHndlr(cJSON *reserveTime)
 }
 
 
-// NOTE: This can be re-factored, but for the sake of time, we will leave it
+
 char* printReserve(cJSON *responsePtr)
 {
-    size_t reserveStrSize = 26; // FIXME
+    size_t reserveStrSize = NO_RSV_LEN;
     char *reserveStr = NULL;
 
-    cJSON * namePtr = cJSON_GetObjectItemCaseSensitive(responsePtr, "firstName");
-    cJSON *startTimeJsonPtr = cJSON_GetObjectItemCaseSensitive(responsePtr, "unixStartTime");
-    cJSON *endTimeJsonPtr = cJSON_GetObjectItemCaseSensitive(responsePtr, "unixEndTime");
+    cJSON * namePtr = cJSON_GetObjectItemCaseSensitive(responsePtr, \
+                                                        "firstName");
 
-    if(!(cJSON_IsNumber(startTimeJsonPtr)) && 
-        !(cJSON_IsNumber(endTimeJsonPtr)) && 
+    cJSON *startTimeJsonPtr = cJSON_GetObjectItemCaseSensitive(responsePtr, \
+                                                                "unixStartTime");
+
+    cJSON *endTimeJsonPtr = cJSON_GetObjectItemCaseSensitive(responsePtr, \
+                                                                "unixEndTime");
+
+    if(!(cJSON_IsNumber(startTimeJsonPtr)) && \
+        !(cJSON_IsNumber(endTimeJsonPtr)) && \
         !(cJSON_IsString(namePtr)))
     {
-        reserveStr = (char*) malloc(sizeof(char) * (26)); // FIXME
+        reserveStr = (char*) malloc(sizeof(char) * (reserveStrSize));
         if(reserveStr != NULL)
         {
-            snprintf(reserveStr, reserveStrSize, "1No%9s%s\r", "", noRsv); // FIXME
+            snprintf(reserveStr, reserveStrSize, "1No%9s%s\r", "", noRsvStr);
         }
         else
         {
-            ESP_LOGE(TAG2, "No reservation %s%s", mallocFail, rtrnNewLine);
+            ESP_LOGE(TAG2, "No %s %s%s", noRsvStr, mallocFail, rtrnNewLine);
         }
         return reserveStr;
     }
@@ -332,15 +368,18 @@ char* printReserve(cJSON *responsePtr)
         return reserveStr;
     }
 
-    reserveStrSize = snprintf(NULL, 0, "1Reserved:\n%s\n\n%s to %s\r", \
-                                namePtr->valuestring, startTimeStr, endTimeStr);
+    reserveStrSize = snprintf(NULL, 0, "1Reserved:\n%s%9s\n%s to %s\r", \
+                            namePtr->valuestring, "", startTimeStr, endTimeStr);
 
     reserveStr = (char*) malloc(sizeof(char) * (reserveStrSize + 1));
 
     if(reserveStr != NULL)
     {
-        snprintf(reserveStr, reserveStrSize + 1, "1Reserved:\n%s\n\n%s to %s\r", \
-                namePtr->valuestring, startTimeStr, endTimeStr); // FIX ME (MAGIC NUMBER)
+        snprintf(reserveStr, reserveStrSize + 1, "1Reserved:\n%s%9s\n%s to %s\r", \
+                namePtr->valuestring, "", startTimeStr, endTimeStr);
+        
+        uint64_t nextRsvTime = ((endTimeJsonPtr->valueint) - time(NULL)) * MICRO_SEC_FACTOR;
+        timerRestart(RSV_ID, nextRsvTime);
     }
     else
     {
@@ -348,9 +387,6 @@ char* printReserve(cJSON *responsePtr)
     }
     free(endTimeStr);
     free(startTimeStr);
-
-    //uint64_t nextRsvTime = ((uint64_t)time(NULL) - endTimeJsonPtr->valueint) * MICRO_SEC_FACTOR;
-    //timerRestart(1, nextRsvTime); // FIXME (MAGIC NUMBER)
 
     return reserveStr;
 }
@@ -366,7 +402,7 @@ static void uartRxWorkHndlr(void)
 
     if(uxSemaphoreGetCount(xMtxEspnow))
     {
-        uint8_t idVal = 2;
+        uint8_t idVal = CODE_ID;
         queuingParseData(idVal);
     }
 }
@@ -403,7 +439,7 @@ static void setAccessCode(char *buffer)
         return;
     }
     
-    if(strlen(buffer) != 7)
+    if(strlen(buffer) != CODE_LEN)
     {
         ESP_LOGE(TAG1, "Invalid Access Code%s", rtrnNewLine);
         return;
@@ -426,7 +462,7 @@ static void xUartRxTask(void *pvParameters)
 {
     uart_event_t event;
 
-    char* rxBuffer = (char*) malloc(BUF_SIZE);
+    char* rxBuffer = (char*) malloc(RX_BUF_SZ);
 
     while(true)
     {
@@ -491,8 +527,8 @@ static void xUartTxTask(void *pvParameters)
             cJSON *responseCode = cJSON_GetObjectItemCaseSensitive(responsePtr, \
                                                                     "responseCode");
 
-            if((responseID->valueint == 2) && \
-                (responseCode->valueint == 1)) // FIXME (MAGIC NUMBERS)
+            if((responseID->valueint == CODE_ID) && \
+                (responseCode->valueint == VALID_RESP))
             {
                 espnowMtxHndlr();
             }

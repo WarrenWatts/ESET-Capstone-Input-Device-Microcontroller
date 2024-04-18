@@ -32,22 +32,21 @@
 #include "main.h"
 #include "espnowTask.h"
 
-
+/* NOTE: !!!!!!!!!!!!!!!!!! RENAME VARIABLES !!!!!!!!!!!!!!!!!! */
 
 /* Local Defines */
-#define TAG_SZ 8
-#define MSG_SZ 2
+#define MSG_LEN 2
 
-/* Static Function Declarations */
+/* Local Function Declarations */
 static void espnowRtosConfig(void);
 static void espnowPeerConfig(void);
 static void xEspnowTask(void *pvParameters);
 void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dateLen);
 
-/* FreeRTOS API Handles */
+/* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xMtxRcvInfo;
 
-/* FreeRTOS API Defining Handles */
+/* FreeRTOS Defining API Handles */
 SemaphoreHandle_t xMtxEspnow;
 SemaphoreHandle_t xSemEspnow;
 
@@ -55,12 +54,12 @@ SemaphoreHandle_t xSemEspnow;
 static esp_now_peer_info_t receiverInfo;
 
 /* Reference Declarations of Global Constant Strings */
-extern const char rtrnNewLine[NEWLINE_SZ];
-extern const char heapFail[HEAP_SZ];
-extern const char mtxFail[MTX_SZ];
+extern const char rtrnNewLine[NEWLINE_LEN];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
 
-/* Static Constant Logging String */
-static const char TAG[TAG_SZ] = "ESP_NOW";
+/* Local Constant Logging String */
+static const char TAG[TAG_LEN_8] = "ESP_NOW";
 
 /* Peer Receiver MAC Address String */
 static const uint8_t receiverMAC[ESP_NOW_ETH_ALEN] = {0x7C, 0xDF, 0xA1, 0xE5, 0x44, 0x30};
@@ -100,8 +99,8 @@ void startEspnowConfig(void)
 /* */
 void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dateLen)
 {
-    const uint8_t msgData[MSG_SZ] = "2";
-    if(esp_now_send(receiverMAC, msgData, MSG_SZ) == ESP_ERR_ESPNOW_ARG)
+    const uint8_t msgData[MSG_LEN] = "2";
+    if(esp_now_send(receiverMAC, msgData, MSG_LEN) == ESP_ERR_ESPNOW_ARG)
     {
         espnowPeerConfig();
     }
@@ -121,17 +120,17 @@ static void espnowRtosConfig(void)
 {
     if(!(xMtxRcvInfo = xSemaphoreCreateMutex()))
     {
-        ESP_LOGW(TAG, "%s xMtxRcvInfo%s", heapFail, rtrnNewLine);
+        ESP_LOGE(TAG, "%s xMtxRcvInfo%s", heapFail, rtrnNewLine);
     }
 
     if(!(xMtxEspnow = xSemaphoreCreateCounting(PSEUDO_MTX_CNT, PSEUDO_MTX_CNT)))
     {
-        ESP_LOGW(TAG, "%s xMtxEspnow%s", heapFail, rtrnNewLine);
+        ESP_LOGE(TAG, "%s xMtxEspnow%s", heapFail, rtrnNewLine);
     }
 
     if(!(xSemEspnow = xSemaphoreCreateBinary()))
     {
-        ESP_LOGW(TAG, "%s xSemEspnow%s", heapFail, rtrnNewLine);
+        ESP_LOGE(TAG, "%s xSemEspnow%s", heapFail, rtrnNewLine);
     }
 
     xTaskCreatePinnedToCore(&xEspnowTask, "ESPNOW_TASk", STACK_DEPTH, 0, NOW_PRIO, 0, 0);
@@ -179,7 +178,7 @@ static void espnowPeerConfig(void)
     }
     else
     {
-        ESP_LOGW(TAG, "%s Mutex%s", mtxFail, rtrnNewLine);
+        ESP_LOGW(TAG, "xMtxRcvInfo %s%s", mtxFail, rtrnNewLine);
     }
 }
 
@@ -203,17 +202,16 @@ static void xEspnowTask(void *pvParameters)
 
         uint8_t count;
         int16_t result = 0;
-        const uint8_t msgData[MSG_SZ] = "1";
+        const uint8_t msgData[MSG_LEN] = "1";
 
         for(count = 0; count < MAX_ATMPT; count++)
         {
-            if((result = esp_now_send(receiverMAC, msgData, MSG_SZ)) == ESP_OK)
+            if((result = esp_now_send(receiverMAC, msgData, MSG_LEN)) == ESP_OK)
             {
-                ESP_LOGI(TAG, "I SUCCEEDED!");
                 break;
             }
 
-            ESP_LOGE(TAG, "Error %d%s", result, rtrnNewLine);
+            ESP_LOGE(TAG, "Error No: %d%s", result, rtrnNewLine);
 
             if(result == ESP_ERR_ESPNOW_ARG)
             {
@@ -222,14 +220,7 @@ static void xEspnowTask(void *pvParameters)
             
             vTaskDelay(FIRST_11_DELAY);
         }
-
-        if(count != MAX_ATMPT)
-        {
-            vTaskDelay(LOCK_DELAY);
-        }
-
         gpio_intr_enable(INTR_PIN);
-
         xSemaphoreGive(xMtxEspnow);
     }
 }

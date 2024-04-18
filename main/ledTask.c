@@ -29,23 +29,24 @@
 
 
 
-/* Local Defines */
-#define TAG_SZ 8
-#define TOGGLE_CNT 2
-
-/* Static Function Declarations */
+/* Local Function Declarations */
 static void xBlinkTask(void *pvParameters);
 static void startLedRtosConfig(void);
 
-/* FreeRTOS API Handles */
+/* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xSemLed;
 
-/* FreeRTOS API Reference Handles */
+/* FreeRTOS Reference API Handles */
 extern SemaphoreHandle_t xMtxEspnow;
 extern SemaphoreHandle_t xSemEspnow;
 
+/* Reference Declarations of Global Constant Strings */
+extern const char rtrnNewLine[NEWLINE_LEN];
+extern const char heapFail[HEAP_LEN];
+extern const char mtxFail[MTX_LEN];
+
 /* Static Constant Logging String */
-static const char TAG[TAG_SZ] = "ESP_LED";
+static const char TAG[TAG_LEN_8] = "ESP_LED";
 
 
 
@@ -84,14 +85,11 @@ void startPinConfig(void)
 
     gpio_config_t pinConfig;
 
-    pinConfig.pin_bit_mask = R_LED_MASK;
+    pinConfig.pin_bit_mask = LED_MASK;
     pinConfig.mode = GPIO_MODE_OUTPUT;
     pinConfig.pull_up_en = 0;
     pinConfig.pull_down_en = 0;
     pinConfig.intr_type = GPIO_INTR_DISABLE;
-    gpio_config(&pinConfig);
-
-    pinConfig.pin_bit_mask = G_LED_MASK;
     gpio_config(&pinConfig);
     
     pinConfig.pin_bit_mask = INTR_MASK;
@@ -112,10 +110,10 @@ static void startLedRtosConfig(void)
 {
     if(!(xSemLed = xSemaphoreCreateBinary()))
     {
-        ESP_LOGW(TAG, "%s Semaphore%s", heapFail, rtrnNewLine);
+        ESP_LOGW(TAG, "%s xSemLed%s", heapFail, rtrnNewLine);
     }
 
-    xTaskCreatePinnedToCore(&xBlinkTask, "LED_TASK", 2048, 0, CORE1_PRIO, 0, 1); //FIXME (MAGIC NUMBER)
+    xTaskCreatePinnedToCore(&xBlinkTask, "LED_TASK", (STACK_DEPTH / 2), 0, CORE1_PRIO, 0, 1);
 }
 
 
