@@ -4,7 +4,8 @@
 ** Author: Warren Watts
 ** File: wifiTask.h
 ** ----------
-** ......
+** Header file for wifiTask.c. Provides constant
+** values and function declarations.
 */
 
 #ifndef WIFITASK_H_
@@ -23,7 +24,7 @@
 
 #define MAX_ATMPT 11
 #define DFLT_CHNL 11
-#define WIFI_PRIO 19
+#define WIFI_PRIO 19 /* Priority of Task */
 
 #define FIRST_11_DELAY pdMS_TO_TICKS(20)
 #define DEF_DELAY pdMS_TO_TICKS(5000)

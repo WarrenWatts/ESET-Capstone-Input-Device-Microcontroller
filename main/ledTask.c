@@ -4,7 +4,10 @@
 ** Author: Warren Watts
 ** File: ledTask.c
 ** --------
-** .......
+** Configures LED pins and GPIO ISR for release button. 
+** Creates a task to send to toggle the LEDs accordingly. Creates
+** an ISR callback function to handle sending an ESP-NOW message if
+** the release button is pressed.
 */
 
 /* Standard Library Headers */
@@ -35,7 +38,6 @@
 ** Mtx - Mutex
 ** Rtrn - Return
 ** Len - Length
-** Msg - Message
 ** G_* - Green
 ** R_* - Red
 ** INTR - Interrupt

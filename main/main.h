@@ -28,7 +28,7 @@
 #define SEM_CNT 3
 #define PSEUDO_MTX_CNT 1
 
-#define CORE1_PRIO 10
+#define CORE1_PRIO 10 /* Priority of Task */
 #define STACK_DEPTH 4096
 
 /* Enum for Global Constant String Sizes */

@@ -21,7 +21,7 @@
 #include "freertos/semphr.h"
 
 /* Defines */
-#define NOW_PRIO 23
+#define NOW_PRIO 23 /* Priority of Task */
 
 /* Function Declarations */
 extern void startEspnowConfig(void);
