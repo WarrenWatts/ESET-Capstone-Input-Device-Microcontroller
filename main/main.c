@@ -33,6 +33,16 @@
 
 
 
+/* Variable Naming Abbreviations Legend:
+**
+** Mtx - Mutex
+** Rtrn - Return
+** Len - Length
+** 
+*/
+
+
+
 /* Defining Declarations of Global Constant Strings */
 const char mallocFail[MALLOC_LEN] = "Malloc failed";
 const char heapFail[HEAP_LEN] = "Insufficient heap space for";

@@ -2,9 +2,11 @@
 ** Electronic Systems Engineering Technology
 ** ESET-420 Engineering Technology Capstone II
 ** Author: Warren Watts
-** File: xEspnowTask.c
+** File: espnowTask.c
 ** --------
-** .......
+** Configures ESP-NOW functionality and creates a task to send
+** ESP-NOW frames. A callback function was also created to handle
+** "alive" status frames.
 */
 
 /* Standard Library Headers */
@@ -32,7 +34,21 @@
 #include "main.h"
 #include "espnowTask.h"
 
-/* NOTE: !!!!!!!!!!!!!!!!!! RENAME VARIABLES !!!!!!!!!!!!!!!!!! */
+
+
+/* Variable Naming Abbreviations Legend:
+**
+** Sem - Semaphore
+** Mtx - Mutex
+** Rtrn - Return
+** Len - Length
+** Msg - Message
+** Chnl - Channel
+** Rcv - Receive
+** 
+*/
+
+
 
 /* Local Defines */
 #define MSG_LEN 2
@@ -41,7 +57,7 @@
 static void espnowRtosConfig(void);
 static void espnowPeerConfig(void);
 static void xEspnowTask(void *pvParameters);
-void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dateLen);
+void espnowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dataLen);
 
 /* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xMtxRcvInfo;
@@ -66,7 +82,8 @@ static const uint8_t receiverMAC[ESP_NOW_ETH_ALEN] = {0x7C, 0xDF, 0xA1, 0xE5, 0x
 
 
 
-/* The startEspnowConfig() function...
+/* The startEspnowConfig() function is used to initialize ESP-NOW
+** functionality for the ESP32.
 **
 ** Parameters:
 **  none
@@ -89,26 +106,16 @@ void startEspnowConfig(void)
     }
 
     ESP_ERROR_CHECK(esp_now_init());
-    esp_now_register_recv_cb(espNowRcvCallback);
+    esp_now_register_recv_cb(espnowRcvCallback);
     espnowRtosConfig();
     espnowPeerConfig();
 }
 
 
 
-/* */
-void espNowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dateLen)
-{
-    const uint8_t msgData[MSG_LEN] = "2";
-    if(esp_now_send(receiverMAC, msgData, MSG_LEN) == ESP_ERR_ESPNOW_ARG)
-    {
-        espnowPeerConfig();
-    }
-}
-
-
-
-/* The espnowRtosConfig() function...
+/* The startEspnowRtosConfig() function is used to initialize the
+** Semaphores and Mutexes that are used by the xEspnowTask and its
+** associated functions. The xEspnowTask is also created here.
 **
 ** Parameters:
 **  none
@@ -138,7 +145,10 @@ static void espnowRtosConfig(void)
 
 
 
-/* The espnowPeerConfig() function...
+/* The espnowPeerConfig() function is used to both
+** initialize and modify the peer configuration. More
+** specifically, the modification of the Wi-Fi channel that
+** the device is transmitting ESP-NOW frames to.
 **
 ** Parameters:
 **  none
@@ -146,7 +156,15 @@ static void espnowRtosConfig(void)
 ** Return:
 **  none
 **
-** Notes:
+** Notes: For transmission to be successful between two ESPs,
+** they must be transmitted/receiving on the same Wi-Fi channel.
+** It is also the case that the Wi-Fi channel being used currently
+** to transmit must match the Wi-Fi channel you have configured
+** for your peer to receive on, otherwise an error will occur.
+** Since Wi-Fi networks can be dynamic in nature, changing the
+** channels that a device is communicating on forcefully, a singular
+** function that handled both the initial configuration of the peer
+** and its modification was created.
 */
 static void espnowPeerConfig(void)
 {
@@ -178,21 +196,53 @@ static void espnowPeerConfig(void)
     }
     else
     {
-        ESP_LOGW(TAG, "xMtxRcvInfo %s%s", mtxFail, rtrnNewLine);
+        ESP_LOGE(TAG, "xMtxRcvInfo %s%s", mtxFail, rtrnNewLine);
     }
 }
 
 
 
-/* The xEspnowTask() function...
+/* The espnowRcvCallback() function handles the frame data
+** sent from the Locking Device Microcontroller. (Alive status frames.)
+** A confirmation frame is sent if the "alive" status frame is received successfully.
 **
 ** Parameters:
+**  espnowInfo - ESP-NOW packet information struct
+**  myData - string data received from ESP-NOW frame
+**  dataLen - length of the data
+**
+** Return:
 **  none
+** 
+** Notes: The peer configuration is only reset if the current transmitting channel
+** does not align with the current peer configuration channel.
+*/
+void espnowRcvCallback(const esp_now_recv_info_t* espNowInfo, const uint8_t *myData, int dataLen)
+{
+    const uint8_t msgData[MSG_LEN] = "2";
+    if(esp_now_send(receiverMAC, msgData, MSG_LEN) == ESP_ERR_ESPNOW_ARG) /* Mis-aligned channels error */
+    {
+        espnowPeerConfig();
+    }
+}
+
+
+
+/* The xEspnowTask() function sends an ESP-NOW frame to the
+** Locking Device Microcontroller telling it to engage the Solenoid.
+** It pends on a synchronization Semaphore and implements redundancy checks
+** by attempting to send multiple times. If an error occurs such that the
+** channels are mis-aligned, they will be corrected. All other errors are logged.
+**
+** Parameters:
+**  none used
 **
 ** Return:
 **  none
 **
-** Notes:
+** Notes: Regardless of ending in success or failure, the single ISR this program
+** uses will be re-enabled at the end of this function and the Pseudo-Mutex 
+** (Counting Semaphore) guarding the use of the xEspnowTask will be returned.
 */
 static void xEspnowTask(void *pvParameters)
 {
@@ -213,7 +263,7 @@ static void xEspnowTask(void *pvParameters)
 
             ESP_LOGE(TAG, "Error No: %d%s", result, rtrnNewLine);
 
-            if(result == ESP_ERR_ESPNOW_ARG)
+            if(result == ESP_ERR_ESPNOW_ARG) /* Mis-aligned channels error */
             {
                 espnowPeerConfig();
             }
@@ -221,6 +271,7 @@ static void xEspnowTask(void *pvParameters)
             vTaskDelay(FIRST_11_DELAY);
         }
         gpio_intr_enable(INTR_PIN);
+        /* Pseudo-Mutex to Guard ESP-NOW Task Use */
         xSemaphoreGive(xMtxEspnow);
     }
 }

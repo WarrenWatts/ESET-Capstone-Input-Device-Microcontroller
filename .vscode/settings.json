@@ -19,7 +19,9 @@
         "espnowtask.h": "c",
         "semphr.h": "c",
         "wifitask.h": "c",
-        "freertos.h": "c"
+        "freertos.h": "c",
+        "ledtask.h": "c",
+        "esp_now.h": "c"
     },
     "idf.flashType": "UART",
     "idf.portWin": "COM7"

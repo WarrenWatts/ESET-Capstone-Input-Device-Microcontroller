@@ -4,7 +4,9 @@
 ** Author: Warren Watts
 ** File: espnowTask.h
 ** ----------
-** ......
+** Header file for espnowTask.c. Provides constant
+** values, function declarations, and FreeRTOS
+** Semaphore/Mutex API declarations.
 */
 
 #ifndef ESPNOWTASK_H_
