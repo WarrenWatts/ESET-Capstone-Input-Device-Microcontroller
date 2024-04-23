@@ -29,6 +29,21 @@
 
 
 
+/* Variable Naming Abbreviations Legend:
+**
+** Sem - Semaphore
+** Mtx - Mutex
+** Rtrn - Return
+** Len - Length
+** Msg - Message
+** G_* - Green
+** R_* - Red
+** INTR - Interrupt
+**
+*/
+
+
+
 /* Local Function Declarations */
 static void xBlinkTask(void *pvParameters);
 static void startLedRtosConfig(void);
@@ -50,6 +65,22 @@ static const char TAG[TAG_LEN_8] = "ESP_LED";
 
 
 
+/* The releaseButtonISR() function is a callback function
+** for a GPIO ISR. This ISR occurs upon the press of the 
+** release button for the locking mechanism.
+**
+** Parameters:
+**  none used
+**
+** Return:
+**  none
+** 
+** Notes: The Pseudo-Mutex (Counting Semaphore) that guards
+** the xEspnowTask() function is attempted to be taken here.
+** If it is not available, then it is exited. If it is available,
+** then it disables its own ISR and gives a synchronization
+** Semaphore also for the xEspnowTask().
+*/
 static void IRAM_ATTR releaseButtonISR(void *arg)
 {
     if(xSemaphoreTakeFromISR(xMtxEspnow, pdFALSE))
@@ -61,7 +92,8 @@ static void IRAM_ATTR releaseButtonISR(void *arg)
 
 
 
-/* The startPinConfig() function...
+/* The startPinConfig() function is used to initialize the pins
+** for the LED in addition to the pin for the GPIO ISR (release button).
 **
 ** Parameters:
 **  none
@@ -85,6 +117,7 @@ void startPinConfig(void)
 
     gpio_config_t pinConfig;
 
+    /* LED_MASK bits allow for initalization of both LED pins */
     pinConfig.pin_bit_mask = LED_MASK;
     pinConfig.mode = GPIO_MODE_OUTPUT;
     pinConfig.pull_up_en = 0;
@@ -106,6 +139,16 @@ void startPinConfig(void)
 
 
 
+/* The startLedRtosConfig() function is used to initialize the
+** single Binary Semaphore that is used by the xBlinkTask and its
+** associated functions. The xBlinkTask() is also created here.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 static void startLedRtosConfig(void)
 {
     if(!(xSemLed = xSemaphoreCreateBinary()))
@@ -118,6 +161,17 @@ static void startLedRtosConfig(void)
 
 
 
+/* The giveSemLed() function simply gives the
+** synchronizing Semaphore xSemLed. This function 
+** was created for the sake of abstraction and to prevent
+** the need to share global variables. 
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 void giveSemLed(void)
 {
     xSemaphoreGive(xSemLed);
@@ -125,6 +179,19 @@ void giveSemLed(void)
 
 
 
+/* The xBlinkTask() function turns the red LED on
+** before pending indefinitely on the xSemLed synchronization
+** Semaphore. Once the Semaphore can be taken, the red LED
+** is turned off and then green LED is turned on for a period
+** of time before switching back to the original state and 
+** pending indefinitely once again.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 static void xBlinkTask(void *pvParameters)
 {
     while(true)

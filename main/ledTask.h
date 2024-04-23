@@ -4,7 +4,8 @@
 ** Author: Warren Watts
 ** File: ledTask.h
 ** ----------
-** ......
+** Header file for ledTask.c. Provides constant
+** values and function declarations.
 */
 
 #ifndef LEDTASK_H_
