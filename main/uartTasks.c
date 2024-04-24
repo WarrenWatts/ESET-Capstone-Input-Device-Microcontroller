@@ -217,14 +217,28 @@ static void startUartRtosConfig(void)
 }
 
 
-
+/* The printTime() function takes the UNIX server time value and formats it
+** into a string, that can be interpreted by touchscreen, to be sent via UART.
+** The string is formatted into Hours, Minutes, and Seconds, with a leading value
+** of zero, which acts as a header byte for the data when read on the touchscreen.
+** The '\r' acts as the trailing byte.
+**
+** Parameters:
+**  responsePtr - pointer to the dynamically allocated cJSON object
+**
+** Return:
+**  A pointer to the dynamically allocated time string to be sent via UART
+**
+** Notes: Since the system time will only be reset once every twenty-four hours, we also
+** call the setTime() function in this function.
+*/
 char* printTime(cJSON *responsePtr)
 {
     char *timeStr = NULL;
     size_t timeStrLen = TIME_LEN;
     cJSON *serverTimePtr = cJSON_GetObjectItemCaseSensitive(responsePtr, "serverTime");
-    struct tm *timePtr = setTime(serverTimePtr->valueint);
-
+    struct tm *timePtr = setTime(serverTimePtr->valueint); /* time.h based struct tm */
+    
     timeStr = (char*) malloc(sizeof(char) * (timeStrLen));
 
     if(timeStr == NULL)
@@ -245,6 +259,17 @@ char* printTime(cJSON *responsePtr)
 
 
 
+/* The printValid() function takes the access code validation value and formats it
+** in a way that is readable to the touchscreen. Again we add a header byte ('2' for
+** access codes) and a trailer byte of '\r'. The value sandwiched between represents a 
+** success or a failure ('3' being success and '4' being failure).
+**
+** Parameters:
+**  responsePtr - pointer to the dynamically allocated cJSON object
+**
+** Return:
+**  A pointer to the dynamically allocated acces code validation string to be sent via UART
+*/
 char* printValid(cJSON *responsePtr)
 {
     char *validStr = NULL;
@@ -268,6 +293,25 @@ char* printValid(cJSON *responsePtr)
 
 
 
+/* The printReserve() function takes the information from the reserve POST Response
+** and formats it in a way that is readable to both the touchscreen and the user,
+** since this will be displayed directly on the touchscreen itself. Again we add a header byte ('1' for
+** reservation text) and a trailer byte of '\r'. The unix start time and unix end time for the
+** reservation must be formatted into meridiem based time, e.g., 9:30pm. Due to adding error recovery/logging
+** for these cases (among others), the size of this function is much larger than the other two
+** print functions.
+**
+** Parameters:
+**  responsePtr - pointer to the dynamically allocated cJSON object
+**
+** Return:
+**  A pointer to the dynamically allocated reservation text string to be sent via UART
+** 
+** Notes: If there is no reservation at the time, a default piece of text (handled within
+** the first if statement) is sent instead. Also, if there is no reservation, the reservation
+** info timer will continue to time out every minute until a reservation (that is occurring currently)
+** has been placed. Otherwise, the timer will not timeout until the end of the current reservation.
+*/
 char* printReserve(cJSON *responsePtr)
 {
     size_t reserveStrLen = NO_RSV_LEN;
@@ -315,6 +359,7 @@ char* printReserve(cJSON *responsePtr)
         return reserveStr;
     }
 
+    /* Doing this to ensure sufficient space is allocated for strings */
     reserveStrLen = snprintf(NULL, 0, "1Reserved:\n%s%9s\n%s to %s\r", \
                             namePtr->valuestring, "", startTimeStr, endTimeStr);
 
@@ -325,6 +370,7 @@ char* printReserve(cJSON *responsePtr)
         snprintf(reserveStr, reserveStrLen + 1, "1Reserved:\n%s%9s\n%s to %s\r", \
                 namePtr->valuestring, "", startTimeStr, endTimeStr);
         
+        /* Cause a timeout at the end of the current reservation */
         uint64_t nextRsvTime = ((endTimeJsonPtr->valueint) - time(NULL)) * MICRO_SEC_FACTOR;
         timerRestart(RSV_ID, nextRsvTime);
     }
