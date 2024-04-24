@@ -141,6 +141,16 @@ printingFuncPtr respPrintFuncs[POST_STATE_SZ] =
 
 
 
+/* The startUartConfig() function is used to initialize UART
+** functionality for this ESP device. (Both TX and RX UART 
+** are configured.)
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 void startUartConfig(void)
 {
     static bool initialized = false;
@@ -174,6 +184,17 @@ void startUartConfig(void)
 
 
 
+/* The startUartRtosConfig() function is used to initialize the
+** Semaphores and Mutexes that are used by the UART tasks and their
+** associated functions. The two UART tasks, xUartRxTask and xUartTxTask,
+** are also created here.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 static void startUartRtosConfig(void)
 {
     if(!(xMtxTimeBool = xSemaphoreCreateMutex()))
@@ -382,10 +403,26 @@ static bool espnowMtxHndlr(void)
 
 
 
+/* The getAccessCode() function is the getter function for the
+** accessCode variable.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  An integer of the access code value
+**
+** Notes: The access code is always reset to zero after being copied to
+** prevent the previous access code from being held and used at a later point.
+** Further note that the xMtxParanoid Pseudo-Mutex is given back here. This Pseudo-Mutex is used
+** to guard the overall operation of getting and setting the access code. This prevents the
+** access code from being set again before we obtain the actual value from the getter function.
+*/
 int32_t getAccessCode(void)
 {
     int32_t accessCodeCpy = 0;
 
+    /* Mutex to Guard accessCode Variable */
     if(xSemaphoreTake(xMtxAccessCode, DEF_PEND))
     {
         accessCodeCpy = accessCode;
@@ -404,8 +441,19 @@ int32_t getAccessCode(void)
 
 
 
+/* The setAccessCode() function is the setter function for the
+** accessCode variable, a global variable that stores the access
+** code received as a string from UART as an integer value.
+**
+** Parameters:
+**  buffer - pointer to the UART provided access code string
+**
+** Return:
+**  none
+*/
 static void setAccessCode(char *buffer)
 {
+    /* Mutex to Guard Access Code Operation */
     if(!xSemaphoreTake(xMtxParanoid, DEF_PEND))
     {
         ESP_LOGE(TAG2, "xMtxParanoid %s%s", mtxFail, rtrnNewLine);
@@ -418,6 +466,7 @@ static void setAccessCode(char *buffer)
         return;
     }
 
+    /* Mutex to Guard accessCode Variable */
     if(xSemaphoreTake(xMtxAccessCode, DEF_PEND))
     {
         accessCode = atol(buffer);
@@ -431,9 +480,20 @@ static void setAccessCode(char *buffer)
 
 
 
+/* The getTimeBool() function is the getter function for the
+** timeSetBool variable.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  Boolean that signifies whether the server time is set or not
+*/
 bool getTimeBool(void)
 {
     bool localTimeSetBool = false;
+
+    /* Mutex to Guard timeSetBool Variable */
     if(xSemaphoreTake(xMtxTimeBool, DEF_PEND))
     {
         localTimeSetBool = timeSetBool;
@@ -449,8 +509,18 @@ bool getTimeBool(void)
 
 
 
+/* The setTimeBool() function is the setter function for the
+** timeSetBool variable.
+**
+** Parameters:
+**  localTimeSetBool - the Boolean value to set the timeSetBool variable
+**
+** Return:
+**  none
+*/
 static void setTimeBool(bool localTimeSetBool)
 {
+    /* Mutex to Guard timeSetBool Variable */
     if(xSemaphoreTake(xMtxTimeBool, DEF_PEND))
     {
         timeSetBool = localTimeSetBool;
@@ -464,6 +534,19 @@ static void setTimeBool(bool localTimeSetBool)
 
 
 
+/* The setTime() function is the setter function for the
+** time of the system based on the received UNIX server time
+** value.
+**
+** Parameters:
+**  serverTime - an integer value holding the UNIX server time
+**
+** Return:
+**  none
+** 
+** Notes: Using basic type since cJSON object only specifies
+** an integer type and nothing more.
+*/
 static struct tm* setTime(int serverTime)
 {
     time_t currentTime;

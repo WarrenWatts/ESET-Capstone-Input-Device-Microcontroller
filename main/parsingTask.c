@@ -67,7 +67,7 @@ typedef enum
 } localStrLengths;
 
 /* Local Function Declarations */
-static void requestParsingTask(void *pvParameters);
+static void xParsingTask(void *pvParameters);
 static parsingFunc urlToString;
 static parsingFunc parseTime;
 static parsingFunc parseReserve;
@@ -114,6 +114,16 @@ static const parsingFuncPtr reqParseFuncs[POST_STATE_SZ] =
 
 
 
+/* The startParsingConfig() function is used to initialize the
+** Semaphores and Queues used by the xParsingTask() and its
+** associated functions. The xParsingTask() is also created here.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 void startParsingConfig(void)
 {
     static bool initialized = false;
@@ -149,7 +159,7 @@ void startParsingConfig(void)
         ESP_LOGE(TAG, "%s xQueueHttp%s", heapFail, rtrnNewLine);
     }
 
-    xTaskCreatePinnedToCore(&requestParsingTask, "REQUEST_PARSE_TASK", \
+    xTaskCreatePinnedToCore(&xParsingTask, "REQUEST_PARSE_TASK", \
                             STACK_DEPTH, 0, CORE1_PRIO, 0, 1);
 }
 
@@ -326,6 +336,16 @@ void mallocCleanup(requestBodyData *reqPtr, int8_t mallocCnt)
 
 
 
+/* The giveSemHttpGuard() function is an abstraction function that
+** gives the xSemHttpGuard Counting Semaphore. This Counting Semaphore is
+** used in conjunction with the xQueueHttp Queue in order to guard against overflow.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 void giveSemHttpGuard(void)
 {
     xSemaphoreGive(xSemHTTPGuard);
@@ -333,7 +353,7 @@ void giveSemHttpGuard(void)
 
 
 
-static void requestParsingTask(void *pvParameters)
+static void xParsingTask(void *pvParameters)
 {
     while(xQueueParse == NULL) 
     {
@@ -352,7 +372,7 @@ static void requestParsingTask(void *pvParameters)
 
         if(dataPtr == NULL)
         {
-            ESP_LOGE(TAG, "requestParsingTask() %s%s", mallocFail, rtrnNewLine);
+            ESP_LOGE(TAG, "xParsingTask() %s%s", mallocFail, rtrnNewLine);
             timerRestart(idVal, DEF_FAIL_TOUT);
             continue;
         }

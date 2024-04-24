@@ -106,7 +106,7 @@ static const timerArgsStruct timerArgsArr[TIMER_SZ] =
 
 
 
-/* The startHttpConfig() the two oneshot timers that call
+/* The startHttpConfig() function configures the two oneshot timers that call
 ** for HTTP requests upon expiring. One is for making reservation
 ** info POST requests and the other is for making server time POST
 ** requests.
