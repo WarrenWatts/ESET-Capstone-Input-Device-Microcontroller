@@ -4,7 +4,9 @@
 ** Author: Warren Watts
 ** File: parsingTasks.h
 ** ----------
-** ......
+** Header file for httpTask.c. Provides constants, typedef
+** enums and structs, FreeRTOS API handle declarations, function declarations,
+** typedef pointers to functions, and typedef functions.
 */
 
 #ifndef PARSINGTASK_H_

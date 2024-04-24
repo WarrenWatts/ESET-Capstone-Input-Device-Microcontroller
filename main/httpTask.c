@@ -53,6 +53,7 @@
 ** Tx - Transmit
 ** Rx - Receive
 ** Mem - Memory
+** Hndlr - Handler
 **
 */
 

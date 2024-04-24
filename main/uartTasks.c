@@ -43,6 +43,28 @@
 
 
 
+/* Variable Naming Abbreviations Legend:
+**
+** Sem - Semaphore
+** Mtx - Mutex
+** Rtrn - Return
+** Len - Length
+** Rsv - Reserve
+** Def - Default
+** Tout - Timeout
+** Sz - Size
+** Tx - Transmit
+** Rx - Receive
+** Rsvtion - Reservation
+** Resp - Response
+** Intr - Interrupt
+** Hldr - Holder
+** Hndlr - Handler
+**
+*/
+
+
+
 /* Local Defines */
 #define TX_BUF_SZ 4
 #define RX_BUF_SZ 256
@@ -50,8 +72,8 @@
 #define UART_PORT 1
 #define UART_BAUD_RATE 115200
 
-#define TXD_PIN 17
-#define RXD_PIN 18
+#define TX_PIN 17
+#define RX_PIN 18
 #define RTS_PIN (UART_PIN_NO_CHANGE)
 #define CTS_PIN (UART_PIN_NO_CHANGE)
 
@@ -145,7 +167,7 @@ void startUartConfig(void)
 
     ESP_ERROR_CHECK(uart_driver_install(UART_PORT, RX_BUF_SZ, 0, TX_BUF_SZ, &xQueueUartRx, intrAllocFlags));
     ESP_ERROR_CHECK(uart_param_config(UART_PORT, &uartConfig));
-    ESP_ERROR_CHECK(uart_set_pin(UART_PORT, TXD_PIN, RXD_PIN, RTS_PIN, CTS_PIN));
+    ESP_ERROR_CHECK(uart_set_pin(UART_PORT, TX_PIN, RX_PIN, RTS_PIN, CTS_PIN));
 
     startUartRtosConfig();
 }
@@ -175,84 +197,14 @@ static void startUartRtosConfig(void)
 
 
 
-bool getTimeBool(void)
-{
-    bool localTimeSetBool = false;
-    if(xSemaphoreTake(xMtxTimeBool, DEF_PEND))
-    {
-        localTimeSetBool = timeSetBool;
-        xSemaphoreGive(xMtxTimeBool);
-    }
-    else
-    {
-        ESP_LOGE(TAG2, "xMtxTimeBool get() %s%s", mtxFail, rtrnNewLine);
-    }
-
-    return localTimeSetBool;
-}
-
-
-
-static void setTimeBool(bool localTimeSetBool)
-{
-    if(xSemaphoreTake(xMtxTimeBool, DEF_PEND))
-    {
-        timeSetBool = localTimeSetBool;
-        xSemaphoreGive(xMtxTimeBool);
-    }
-    else
-    {
-        ESP_LOGE(TAG2, "xMtxTimeBool set() %s%s", mtxFail, rtrnNewLine);
-    }
-}
-
-
-
-static struct tm* setTime(int serverTime)
-{
-    time_t currentTime;
-    struct tm *timePtr = NULL;
-    struct timeval tv = {(time_t) serverTime, 0};
-
-    settimeofday(&tv, 0);
-    setTimeBool(true);
-    time(&currentTime);
-    timePtr = localtime(&currentTime);
-
-    return timePtr;
-}
-
-
-
-static bool espnowMtxHndlr(void)
-{
-    bool status = true;
-
-    if(xSemaphoreTake(xMtxEspnow, DEF_PEND))
-    {
-        gpio_intr_disable(INTR_PIN);
-        xSemaphoreGive(xSemEspnow);
-        giveSemLed();
-    }
-    else
-    {
-        ESP_LOGE(TAG2, "xMtxEspnow %s%s", mtxFail, rtrnNewLine);
-        status = false;
-    }
-
-    return status;
-}
-
-
-
 char* printTime(cJSON *responsePtr)
 {
     char *timeStr = NULL;
-    size_t timeStrSize = TIME_LEN;
+    size_t timeStrLen = TIME_LEN;
     cJSON *serverTimePtr = cJSON_GetObjectItemCaseSensitive(responsePtr, "serverTime");
     struct tm *timePtr = setTime(serverTimePtr->valueint);
 
-    timeStr = (char*) malloc(sizeof(char) * (timeStrSize));
+    timeStr = (char*) malloc(sizeof(char) * (timeStrLen));
 
     if(timeStr == NULL)
     {
@@ -260,7 +212,7 @@ char* printTime(cJSON *responsePtr)
         return timeStr;
     }
 
-    if(!strftime(timeStr, timeStrSize, "0%H %M %S\r", timePtr))
+    if(!strftime(timeStr, timeStrLen, "0%H %M %S\r", timePtr))
     {
         ESP_LOGE(TAG2, "Time string size fail%s", rtrnNewLine);
         free(timeStr);
@@ -295,35 +247,9 @@ char* printValid(cJSON *responsePtr)
 
 
 
-static char* reserveTimesHndlr(cJSON *reserveTime)
-{
-    size_t timeStrSize = RSV_TIME_LEN;
-    char *reserveTimeStr = NULL;
-    time_t rsvTime = reserveTime->valueint;
-
-    reserveTimeStr = (char*) malloc(sizeof(char) * (timeStrSize));
-
-    if(reserveTimeStr == NULL)
-    {
-        ESP_LOGE(TAG2, "Reserve string %s%s", mallocFail, rtrnNewLine);
-        return reserveTimeStr;
-    }
-
-    if(!strftime(reserveTimeStr, timeStrSize, "%I:%M%p", localtime(&rsvTime)))
-    {
-        ESP_LOGE(TAG2, "Reserve string size fail%s", rtrnNewLine);
-        free(reserveTimeStr);
-        reserveTimeStr = NULL;
-    }
-
-    return reserveTimeStr;
-}
-
-
-
 char* printReserve(cJSON *responsePtr)
 {
-    size_t reserveStrSize = NO_RSV_LEN;
+    size_t reserveStrLen = NO_RSV_LEN;
     char *reserveStr = NULL;
 
     cJSON * namePtr = cJSON_GetObjectItemCaseSensitive(responsePtr, \
@@ -339,10 +265,10 @@ char* printReserve(cJSON *responsePtr)
         !(cJSON_IsNumber(endTimeJsonPtr)) && \
         !(cJSON_IsString(namePtr)))
     {
-        reserveStr = (char*) malloc(sizeof(char) * (reserveStrSize));
+        reserveStr = (char*) malloc(sizeof(char) * (reserveStrLen));
         if(reserveStr != NULL)
         {
-            snprintf(reserveStr, reserveStrSize, "1No%9s%s\r", "", noRsvStr);
+            snprintf(reserveStr, reserveStrLen, "1No%9s%s\r", "", noRsvStr);
         }
         else
         {
@@ -368,14 +294,14 @@ char* printReserve(cJSON *responsePtr)
         return reserveStr;
     }
 
-    reserveStrSize = snprintf(NULL, 0, "1Reserved:\n%s%9s\n%s to %s\r", \
+    reserveStrLen = snprintf(NULL, 0, "1Reserved:\n%s%9s\n%s to %s\r", \
                             namePtr->valuestring, "", startTimeStr, endTimeStr);
 
-    reserveStr = (char*) malloc(sizeof(char) * (reserveStrSize + 1));
+    reserveStr = (char*) malloc(sizeof(char) * (reserveStrLen + 1));
 
     if(reserveStr != NULL)
     {
-        snprintf(reserveStr, reserveStrSize + 1, "1Reserved:\n%s%9s\n%s to %s\r", \
+        snprintf(reserveStr, reserveStrLen + 1, "1Reserved:\n%s%9s\n%s to %s\r", \
                 namePtr->valuestring, "", startTimeStr, endTimeStr);
         
         uint64_t nextRsvTime = ((endTimeJsonPtr->valueint) - time(NULL)) * MICRO_SEC_FACTOR;
@@ -405,6 +331,53 @@ static void uartRxWorkHndlr(void)
         uint8_t idVal = CODE_ID;
         queuingParseData(idVal);
     }
+}
+
+
+
+static char* reserveTimesHndlr(cJSON *reserveTime)
+{
+    size_t timeStrLen = RSV_TIME_LEN;
+    char *reserveTimeStr = NULL;
+    time_t rsvTime = reserveTime->valueint;
+
+    reserveTimeStr = (char*) malloc(sizeof(char) * (timeStrLen));
+
+    if(reserveTimeStr == NULL)
+    {
+        ESP_LOGE(TAG2, "Reserve string %s%s", mallocFail, rtrnNewLine);
+        return reserveTimeStr;
+    }
+
+    if(!strftime(reserveTimeStr, timeStrLen, "%I:%M%p", localtime(&rsvTime)))
+    {
+        ESP_LOGE(TAG2, "Reserve string size fail%s", rtrnNewLine);
+        free(reserveTimeStr);
+        reserveTimeStr = NULL;
+    }
+
+    return reserveTimeStr;
+}
+
+
+
+static bool espnowMtxHndlr(void)
+{
+    bool status = true;
+
+    if(xSemaphoreTake(xMtxEspnow, DEF_PEND))
+    {
+        gpio_intr_disable(INTR_PIN);
+        xSemaphoreGive(xSemEspnow);
+        giveSemLed();
+    }
+    else
+    {
+        ESP_LOGE(TAG2, "xMtxEspnow %s%s", mtxFail, rtrnNewLine);
+        status = false;
+    }
+
+    return status;
 }
 
 
@@ -454,6 +427,55 @@ static void setAccessCode(char *buffer)
     {
         ESP_LOGE(TAG2, "xMtxAccessCode set() %s%s", mtxFail, rtrnNewLine);
     }
+}
+
+
+
+bool getTimeBool(void)
+{
+    bool localTimeSetBool = false;
+    if(xSemaphoreTake(xMtxTimeBool, DEF_PEND))
+    {
+        localTimeSetBool = timeSetBool;
+        xSemaphoreGive(xMtxTimeBool);
+    }
+    else
+    {
+        ESP_LOGE(TAG2, "xMtxTimeBool get() %s%s", mtxFail, rtrnNewLine);
+    }
+
+    return localTimeSetBool;
+}
+
+
+
+static void setTimeBool(bool localTimeSetBool)
+{
+    if(xSemaphoreTake(xMtxTimeBool, DEF_PEND))
+    {
+        timeSetBool = localTimeSetBool;
+        xSemaphoreGive(xMtxTimeBool);
+    }
+    else
+    {
+        ESP_LOGE(TAG2, "xMtxTimeBool set() %s%s", mtxFail, rtrnNewLine);
+    }
+}
+
+
+
+static struct tm* setTime(int serverTime)
+{
+    time_t currentTime;
+    struct tm *timePtr = NULL;
+    struct timeval tv = {(time_t) serverTime, 0};
+
+    settimeofday(&tv, 0);
+    setTimeBool(true);
+    time(&currentTime);
+    timePtr = localtime(&currentTime);
+
+    return timePtr;
 }
 
 

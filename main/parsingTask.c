@@ -35,6 +35,23 @@
 
 
 
+/* Variable Naming Abbreviations Legend:
+**
+** Sem - Semaphore
+** Mtx - Mutex
+** Rtrn - Return
+** Len - Length
+** Rsv - Reserve
+** Def - Default
+** Tout - Timeout
+** Sz - Size
+** Req - Request
+** Cntr - Counter
+**
+*/
+
+
+
 /* Local Defines */
 #define TIME_LEN (POST_STATE_SZ)
 
@@ -162,21 +179,21 @@ bool parseTime(requestBodyData *reqPtr)
 
 bool parseReserve(requestBodyData *reqPtr)
 {
-    static const char fxnNameStr[PARSE_RSV_LEN] = "parseReserve()";
+    static const char funcNameStr[PARSE_RSV_LEN] = "parseReserve()";
     bool status = true;
 
     if(getTimeBool())
     {
-        size_t timeStrSize = 0;
+        size_t timeStrLen = 0;
         time_t currentTime = time(NULL);
-        timeStrSize = snprintf(NULL, 0, "%lld", currentTime);
+        timeStrLen = snprintf(NULL, 0, "%lld", currentTime);
 
-        reqPtr->jsonStrLen = DEF_RSV_LEN + timeStrSize + 1;
+        reqPtr->jsonStrLen = DEF_RSV_LEN + timeStrLen + 1;
         reqPtr->jsonStr = (char*) malloc(sizeof(char) * (reqPtr->jsonStrLen));
 
         if(reqPtr->jsonStr == NULL)
         {
-            ESP_LOGE(TAG, "%s %s%s", fxnNameStr, mallocFail, rtrnNewLine);
+            ESP_LOGE(TAG, "%s %s%s", funcNameStr, mallocFail, rtrnNewLine);
             status = false;
         }
         else
@@ -187,7 +204,7 @@ bool parseReserve(requestBodyData *reqPtr)
     }
     else
     {
-        ESP_LOGE(TAG, "%s %s%s", earlyBirdFail, fxnNameStr, rtrnNewLine);
+        ESP_LOGE(TAG, "%s %s%s", earlyBirdFail, funcNameStr, rtrnNewLine);
         timerRestart(reqPtr->id, DEF_FAIL_TOUT);
         status = false;
     }
@@ -199,7 +216,7 @@ bool parseReserve(requestBodyData *reqPtr)
 
 bool parseAccessCode(requestBodyData *reqPtr)
 { /* FIXME : Now that this function is no longer unique, combine/refactor with parseReserve()! */
-    static const char fxnNameStr[PARSE_CODE_LEN] = "parseAccessCode()";
+    static const char funcNameStr[PARSE_CODE_LEN] = "parseAccessCode()";
     bool status = true;
 
     if(getTimeBool())
@@ -209,7 +226,7 @@ bool parseAccessCode(requestBodyData *reqPtr)
 
         if(reqPtr->jsonStr == NULL)
         {
-            ESP_LOGE(TAG, "%s %s%s", fxnNameStr, mallocFail, rtrnNewLine);
+            ESP_LOGE(TAG, "%s %s%s", funcNameStr, mallocFail, rtrnNewLine);
             status = false;
         }
         else
@@ -220,30 +237,8 @@ bool parseAccessCode(requestBodyData *reqPtr)
     }
     else
     {
-        ESP_LOGE(TAG, "%s %s%s", earlyBirdFail, fxnNameStr, rtrnNewLine);
+        ESP_LOGE(TAG, "%s %s%s", earlyBirdFail, funcNameStr, rtrnNewLine);
         status = false;
-    }
-
-    return status;
-}
-
-
-
-bool urlToString(requestBodyData *reqPtr)
-{
-    bool status = true;
-
-    reqPtr->urlLen = (snprintf(NULL, 0, "%s%s", URL, urlPaths[reqPtr->id])) + 1;
-    reqPtr->url = (char*) malloc(sizeof(char) * (reqPtr->urlLen));
-
-    if(reqPtr->url == NULL)
-    {
-        ESP_LOGE(TAG, "URL %s%s", mallocFail, rtrnNewLine);
-        status = false;
-    }
-    else
-    {
-        snprintf(reqPtr->url, reqPtr->urlLen, "%s%s", URL, urlPaths[reqPtr->id]);
     }
 
     return status;
@@ -289,9 +284,24 @@ static int8_t queuingHttpData(requestBodyData *reqPtr, int8_t freeHeapCntr)
 
 
 
-void giveSemHttpGuard(void)
+bool urlToString(requestBodyData *reqPtr)
 {
-    xSemaphoreGive(xSemHTTPGuard);
+    bool status = true;
+
+    reqPtr->urlLen = (snprintf(NULL, 0, "%s%s", URL, urlPaths[reqPtr->id])) + 1;
+    reqPtr->url = (char*) malloc(sizeof(char) * (reqPtr->urlLen));
+
+    if(reqPtr->url == NULL)
+    {
+        ESP_LOGE(TAG, "URL %s%s", mallocFail, rtrnNewLine);
+        status = false;
+    }
+    else
+    {
+        snprintf(reqPtr->url, reqPtr->urlLen, "%s%s", URL, urlPaths[reqPtr->id]);
+    }
+
+    return status;
 }
 
 
@@ -312,6 +322,13 @@ void mallocCleanup(requestBodyData *reqPtr, int8_t mallocCnt)
         default:
             break;
     } /* End Switch Statement */
+}
+
+
+
+void giveSemHttpGuard(void)
+{
+    xSemaphoreGive(xSemHTTPGuard);
 }
 
 

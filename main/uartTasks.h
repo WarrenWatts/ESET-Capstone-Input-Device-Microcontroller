@@ -4,7 +4,8 @@
 ** Author: Warren Watts
 ** File: uartTasks.h
 ** ----------
-** ......
+** Header file for httpTask.c. Provides constants, function declarations,
+** typedef pointers to functions, and typedef functions.
 */
 
 #ifndef UARTTASKS_H_
