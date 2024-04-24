@@ -4,7 +4,9 @@
 ** Author: Warren Watts
 ** File: uartTasks.c
 ** --------
-** .......
+** Configures/enables UART TX and RX capabilites for 
+** the ESP device between it and the 4D Systems touchscreen.
+** 
 */
 
 /* Standard Library Headers */
@@ -386,22 +388,46 @@ char* printReserve(cJSON *responsePtr)
 
 
 
+/* The uartRxWorkHndlr() function is used to check the xMtxEspnow Pseudo-Mutex 
+** to see if it has already been taken by the release button. (This does not
+** actually take it, just checks it.) It then check the Wi-Fi status since sending
+** an HTTP message when Wi-Fi is down is pointless. If both of these are true, then
+** we add the access code ID to the xQueueParse Queue. If either of these fail,
+** we need to execute the getAccessCode() function to dump the access code and 
+** re-obtain the xMtxParanoid Pseudo-Mutex.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  none
+*/
 static void uartRxWorkHndlr(void)
 {
-    if (wifiCheckStatus())
-    {
-        return;
-    }
-
     if(uxSemaphoreGetCount(xMtxEspnow))
     {
-        uint8_t idVal = CODE_ID;
-        queuingParseData(idVal);
+        if (!wifiCheckStatus())
+        {
+            queuingParseData(CODE_ID);
+            return;
+        }
     }
+
+    getAccessCode();
 }
 
 
 
+/* The reserveTimeHndlr() function is the sub-function utilized by the printReserve()
+** function that takes the unix times and converts them into meridiem/12-hour clock times,
+** e.g., 8:45AM. 
+**
+** Parameters:
+**  reserveTime - a pointer to the unix time value stored in the cJSON object
+**
+** Return:
+**  A pointer to a dynamically allocated string of the 12-hour clock time representation
+*/
 static char* reserveTimesHndlr(cJSON *reserveTime)
 {
     size_t timeStrLen = RSV_TIME_LEN;
@@ -428,6 +454,18 @@ static char* reserveTimesHndlr(cJSON *reserveTime)
 
 
 
+/* The espnowMtxHndlr() function will attempt to take the Pseudo-Mutex guarding
+** the xEspnowTask() if an access code reaches this far (which, unless something really
+** bad happens, should always occur) and is valid. It then disables the GPIO ISR and
+** gives the xSemEspnow synchronization Semaphore. Finally, it uses the giveSemLed() function
+** to post the LED Semaphore to cause the LED to be toggled.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  Boolean that details whether the Pseudo-Mutex was available to be taken or not
+*/
 static bool espnowMtxHndlr(void)
 {
     bool status = true;
@@ -440,7 +478,7 @@ static bool espnowMtxHndlr(void)
     }
     else
     {
-        ESP_LOGE(TAG2, "xMtxEspnow %s%s", mtxFail, rtrnNewLine);
+        ESP_LOGW(TAG2, "xMtxEspnow %s%s", mtxFail, rtrnNewLine);
         status = false;
     }
 
@@ -609,6 +647,21 @@ static struct tm* setTime(int serverTime)
 
 
 
+/* The xUartRxTask() function is used to handle UART RX events as they
+** are added to the xQueueUartRx Queue. However, only some of these events
+** will have their functionality executed. The most important of these events
+** is the UART_DATA event, which contains the UART string sent from the transmitter.
+** From here the bytes are read from the buffer, and a null terminator character
+** is added to the end of the string (one character beyond the 'end'). The access code
+** is then sent and any other necessary functionality is handled in the uartRxWorkHndlr()
+** function.
+**
+** Parameters:
+**  none used
+**
+** Return:
+**  none
+*/
 static void xUartRxTask(void *pvParameters)
 {
     uart_event_t event;
@@ -656,6 +709,19 @@ static void xUartRxTask(void *pvParameters)
 
 
 
+/* The xUartTxTask() function is used to handle sending data via UART TX events. Once
+** data is received on xQueueUartTx Queue, the ID of the cJSON object passed is used
+** to index a state array to its targeted function. This returns a pointer to char
+** that is then sent to the touchscreen via UART. If the value is an access code
+** and is also valid, communication via ESP-NOW will be attempted (won't be possible
+** if the Pseudo-Mutex was taken already by the release button ISR).
+**
+** Parameters:
+**  none used
+**
+** Return:
+**  none
+*/
 static void xUartTxTask(void *pvParameters)
 {
     while(true)
