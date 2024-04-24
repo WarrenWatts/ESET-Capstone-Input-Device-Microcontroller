@@ -4,7 +4,9 @@
 ** Author: Warren Watts
 ** File: httpTask.h
 ** ----------
-** ......
+** Header file for httpTask.c. Provides constants, typedef
+** enums and structs, FreeRTOS API handle declarations, and
+** function declarations.
 */
 
 #ifndef HTTPTASK_H_
