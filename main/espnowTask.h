@@ -21,7 +21,11 @@
 #include "freertos/semphr.h"
 
 /* Defines */
-#define NOW_PRIO 23 /* Priority of Task */
+#define NOW_PRIO 24 /* Priority of Task */
+/* NOTE:
+** ESP-NOW has the highest priority on Core 0 since entering or exiting the 
+** room safely should be prioritized over all else!
+*/
 
 /* Function Declarations */
 extern void startEspnowConfig(void);

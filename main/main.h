@@ -28,7 +28,13 @@
 #define SEM_CNT 3
 #define PSEUDO_MTX_CNT 1
 
-#define CORE1_PRIO 10 /* Priority of Task */
+#define CORE1_PRIO 10 /* Default Core 1 Priority of Task */
+/* NOTE:
+** Tasks a Core 1 (in the case of this project) don't need 
+** different priority values in order to produce the desired functionality, 
+** and therefore can be set to some default value (10 chosen as this value).
+*/
+
 #define STACK_DEPTH 4096
 
 /* Enum for Global Constant String Sizes */

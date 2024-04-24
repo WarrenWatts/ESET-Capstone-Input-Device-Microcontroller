@@ -81,7 +81,11 @@ static const char TAG[TAG_LEN_8] = "ESP_LED";
 ** the xEspnowTask() function is attempted to be taken here.
 ** If it is not available, then it is exited. If it is available,
 ** then it disables its own ISR and gives a synchronization
-** Semaphore also for the xEspnowTask().
+** Semaphore also for the xEspnowTask(). The reason for the Pseudo-
+** Mutex is to prevent the possible race condition that may occur
+** between the touchscreen (when a correct code is entered) and the release button
+** when it comes to sending an ESP-NOW message to unlock the door. In this way, only
+** one can occur and that is whichever one takes the Mutex first. 
 */
 static void IRAM_ATTR releaseButtonISR(void *arg)
 {

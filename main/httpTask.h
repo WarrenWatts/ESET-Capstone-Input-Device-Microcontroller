@@ -22,7 +22,14 @@
 
 
 /* Defines */
-#define HTTP_PRIO 19
+#define HTTP_PRIO 19 /* Priority of Task */
+/* NOTE:
+** Lowest priority of all the Wi-Fi related tasks since
+** all other tasks on Core 0 are either determining if
+** connection is currently viable or provide communication
+** processes that are necessary for safe operation.
+*/
+
 #define DEF_FAIL_TOUT 20000000 /* Time in microseconds */
 
 /* Function Declarations */

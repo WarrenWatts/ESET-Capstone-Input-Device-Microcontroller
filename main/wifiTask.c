@@ -31,6 +31,17 @@
 
 
 
+/* NOTE:
+** ESP Wi-Fi Drivers have a priority of 23.
+** This means connection attempts will have 
+** the highest priority outside of ESP-NOW
+** on Core 0! Wi-Fi Events themselves, however
+** have a priority of 20 (the priority of the
+** default event loop).
+*/
+
+
+
 /* Variable Naming Abbreviations Legend:
 **
 ** Sem - Semaphore
