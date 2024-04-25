@@ -19,8 +19,8 @@
 #include "freertos/task.h"
 
 /* Defines */
-#define SSID "Warren iPhone"
-#define PASS "Warren123" /* Will be changing... */
+#define SSID "SSID" /* Will be changing... */
+#define PASS "PASSWORD" /* Will be changing... */
 
 #define MAX_ATMPT 11
 #define DFLT_CHNL 11

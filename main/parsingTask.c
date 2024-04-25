@@ -94,7 +94,7 @@ const char queueSendFail[SEND_FAIL_LEN] = "Could not send to ";
 const char queueFullFail[FULL_FAIL_LEN] = " is full";
 
 /* Local String Constants */
-static const char URL[URL_LEN] = "http://172.20.10.3:8000/";
+static const char URL[URL_LEN] = "http://255.255.255.255:8000/"; /* Will be changing... */
 static const char TAG[TAG_LEN_10] = "REQ_PARSE";
 static const char earlyBirdFail[EARLY_FAIL_LEN] = "Request made before time set in";
 
@@ -354,7 +354,7 @@ static int8_t queuingHttpData(requestBodyData *reqPtr, int8_t freeHeapCntr)
         if(!xQueueSendToBack(xQueueHttp, (void*) &reqPtr, DEF_PEND))
         {
             ESP_LOGE(TAG, "%sxQueueHTTP%s", queueSendFail, rtrnNewLine);
-            xSemaphoreGive(xSemHTTPGuard);
+            giveSemHttpGuard();
             freeHeapCntr = MAX_HEAP;
         }
         /* Don't want memory freed if there is no failure! */   
