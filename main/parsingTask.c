@@ -4,7 +4,8 @@
 ** Author: Warren Watts
 ** File: parsingTasks.c
 ** --------
-** .......
+** Code to handle the preparation of data
+** that will be used in each specific HTTP Reqeust.
 */
 
 
