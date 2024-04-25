@@ -96,6 +96,7 @@ static void xUartRxTask(void *pvParameters);
 static void xUartTxTask(void *pvParameters);
 static void setAccessCode(char *buffer);
 static void setTimeBool(bool localTimeSetBool);
+static void setTime(int serverTime);
 static void uartRxWorkHndlr(void);
 static char* reserveTimesHndlr(cJSON *reserveTime);
 static bool espnowMtxHndlr(void);
@@ -237,9 +238,12 @@ static void startUartRtosConfig(void)
 char* printTime(cJSON *responsePtr)
 {
     char *timeStr = NULL;
-    size_t timeStrLen = TIME_LEN;
+    size_t timeStrLen = TIME_LEN; 
     cJSON *serverTimePtr = cJSON_GetObjectItemCaseSensitive(responsePtr, "serverTime");
-    struct tm *timePtr = setTime(serverTimePtr->valueint); /* time.h based struct tm */
+
+    setTime(serverTimePtr->valueint);
+    time_t currentTime = getTime();
+    struct tm *timePtr = localtime(&currentTime); /* time.h based struct tm */
     
     timeStr = (char*) malloc(sizeof(char) * (timeStrLen));
 
@@ -618,6 +622,26 @@ static void setTimeBool(bool localTimeSetBool)
 
 
 
+/* The getTime() function is the getter function for the
+** time of the system.
+**
+** Parameters:
+**  none
+**
+** Return:
+**  A value of the current system time
+**
+*/
+time_t getTime(void)
+{
+    time_t currentTime;
+    time(&currentTime);
+
+    return currentTime;
+}
+
+
+
 /* The setTime() function is the setter function for the
 ** time of the system based on the received UNIX server time
 ** value.
@@ -631,18 +655,12 @@ static void setTimeBool(bool localTimeSetBool)
 ** Notes: Using basic type since cJSON object only specifies
 ** an integer type and nothing more.
 */
-static struct tm* setTime(int serverTime)
+static void setTime(int serverTime)
 {
-    time_t currentTime;
-    struct tm *timePtr = NULL;
     struct timeval tv = {(time_t) serverTime, 0};
 
     settimeofday(&tv, 0);
     setTimeBool(true);
-    time(&currentTime);
-    timePtr = localtime(&currentTime);
-
-    return timePtr;
 }
 
 

@@ -23,7 +23,11 @@
         "ledtask.h": "c",
         "esp_now.h": "c",
         "esp_err.h": "c",
-        "cjson.h": "c"
+        "cjson.h": "c",
+        "condition_variable": "c",
+        "ctime": "c",
+        "mutex": "c",
+        "uart.h": "c"
     },
     "idf.flashType": "UART",
     "idf.portWin": "COM7"

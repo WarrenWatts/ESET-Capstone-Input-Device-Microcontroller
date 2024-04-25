@@ -68,6 +68,7 @@ typedef enum
 
 /* Local Function Declarations */
 static void xParsingTask(void *pvParameters);
+static int8_t queuingHttpData(requestBodyData *reqPtr, int8_t freeHeapCntr);
 static parsingFunc urlToString;
 static parsingFunc parseTime;
 static parsingFunc parseReserve;
@@ -165,6 +166,34 @@ void startParsingConfig(void)
 
 
 
+/* BIG NOTE:
+** Due to how ESP-IDF API works with processing "JSON" in the form
+** of strings (won't accept an empty string between the brackets)
+** as well as the original plan for parsing the access code
+** (which involved two name/value pairs instead of one), parsing
+** was done in three separate functions. To whomever picks up this
+** Capstone project next, it should be possible to re-work the code
+** into having a singular function that handles all parsing, especially
+** since now the functions parseReserve() and parseAccessCode() are so
+** similar and therefore redundant.
+*/
+
+
+
+/* The parseTime() function creates the necessary JSON string for the body
+** of the HTTP POST Request that will return the server time. In this case,
+** the body need only be brackets.
+**
+** Parameters:
+**  reqPtr - pointer to the requestBodyData struct in dynamic memory
+**
+** Return:
+**  A Boolean on the status of memory allocation success
+**
+** Notes: An empty string or rather "" did not seem to work properly
+** due to the way ESP-IDF processes their JSON strings. May want to look
+** further into this!
+*/
 bool parseTime(requestBodyData *reqPtr)
 {
     bool status = true;
@@ -187,6 +216,15 @@ bool parseTime(requestBodyData *reqPtr)
 
 
 
+/* The parseReserve() function creates the necessary JSON string for the body
+** of the HTTP POST Request that will return the reservation information.
+**
+** Parameters:
+**  reqPtr - pointer to the requestBodyData struct in dynamic memory
+**
+** Return:
+**  A Boolean on the status of memory allocation success
+*/
 bool parseReserve(requestBodyData *reqPtr)
 {
     static const char funcNameStr[PARSE_RSV_LEN] = "parseReserve()";
@@ -195,7 +233,9 @@ bool parseReserve(requestBodyData *reqPtr)
     if(getTimeBool())
     {
         size_t timeStrLen = 0;
-        time_t currentTime = time(NULL);
+        time_t currentTime = getTime();
+
+        /* In case a server time larger than what is expected appears */
         timeStrLen = snprintf(NULL, 0, "%lld", currentTime);
 
         reqPtr->jsonStrLen = DEF_RSV_LEN + timeStrLen + 1;
@@ -224,8 +264,17 @@ bool parseReserve(requestBodyData *reqPtr)
 
 
 
+/* The parseAccessCode() function creates the necessary JSON string for the body
+** of the HTTP POST Request that will return the access code validation info.
+**
+** Parameters:
+**  reqPtr - pointer to the requestBodyData struct in dynamic memory
+**
+** Return:
+**  A Boolean on the status of memory allocation success
+*/
 bool parseAccessCode(requestBodyData *reqPtr)
-{ /* FIXME : Now that this function is no longer unique, combine/refactor with parseReserve()! */
+{ /* FIXME : Now that this function is no longer unique, try to combine it with parseReserve() and parseTime! */
     static const char funcNameStr[PARSE_CODE_LEN] = "parseAccessCode()";
     bool status = true;
 
@@ -256,6 +305,17 @@ bool parseAccessCode(requestBodyData *reqPtr)
 
 
 
+/* The queuingParseData() function is used to queue the ID value parsed used to determine
+** the type of POST Request data to begin preparing. Like all other queuing functions, 
+** this one uses a Counting Semaphore to guard against queue overflow in addition to 
+** making sure that the value was added to the queue. 
+**
+** Parameters:
+**  idVal - the ID of the POST Request to be sent
+**
+** Return:
+**  none
+*/
 void queuingParseData(uint8_t idVal)
 {
     if(xSemaphoreTake(xSemParseGuard, DEF_PEND))
@@ -263,6 +323,7 @@ void queuingParseData(uint8_t idVal)
         if(!xQueueSendToBack(xQueueParse, (void*) &idVal, DEF_PEND))
         {
             ESP_LOGE(TAG, "%sxQueueHTTP%s", queueSendFail, rtrnNewLine);
+            xSemaphoreGive(xSemParseGuard);
         }   
     }
     else
@@ -273,6 +334,18 @@ void queuingParseData(uint8_t idVal)
 
 
 
+/* The queuingHttpData() function is used to queue the data parsed for the HTTP POST
+** request. Like all other queuing functions, this one uses a Counting Semaphore to
+** guard against queue overflow in addition to making sure that the value was added
+** to the queue. 
+**
+** Parameters:
+**  reqPtr - pointer to the requestBodyData struct in dynamic memory
+**  freeHeapCntr - integer that determines how much dynamic memory has to be freed
+**
+** Return:
+**  The amount of dynamic memory that needs to be freed
+*/
 static int8_t queuingHttpData(requestBodyData *reqPtr, int8_t freeHeapCntr)
 {
     if(xSemaphoreTake(xSemHTTPGuard, DEF_PEND))
@@ -280,8 +353,10 @@ static int8_t queuingHttpData(requestBodyData *reqPtr, int8_t freeHeapCntr)
         if(!xQueueSendToBack(xQueueHttp, (void*) &reqPtr, DEF_PEND))
         {
             ESP_LOGE(TAG, "%sxQueueHTTP%s", queueSendFail, rtrnNewLine);
+            xSemaphoreGive(xSemHTTPGuard);
             freeHeapCntr = MAX_HEAP;
-        }   
+        }
+        /* Don't want memory freed if there is no failure! */   
     }
     else
     {
@@ -294,6 +369,15 @@ static int8_t queuingHttpData(requestBodyData *reqPtr, int8_t freeHeapCntr)
 
 
 
+/* The urlToString() function allocates and creates the string
+** that will be used as the URL for the HTTP POST Request.
+**
+** Parameters:
+**  reqPtr - pointer to the requestBodyData struct in dynamic memory
+**
+** Return:
+**  A Boolean on the status of memory allocation success
+*/
 bool urlToString(requestBodyData *reqPtr)
 {
     bool status = true;
@@ -316,6 +400,20 @@ bool urlToString(requestBodyData *reqPtr)
 
 
 
+/* The mallocCleanup() function is used to cleanup up each of the dynamically
+** allocated piece within the typedef struct requestBodyData and the struct 
+** itself. The value of the heap (i.e., how much has been allocated
+** before this function was called and now needs cleaning) tells you how 
+** much needs to be cleaned up, and a fall-through switch statement helped
+** to make the code for this process much cleaner.
+**
+** Parameters:
+**  reqPtr - pointer to the requestBodyData struct in dynamic memory
+** mallocCnt - the number of mallocs that DON'T need freeing
+**
+** Return:
+**  none
+*/
 void mallocCleanup(requestBodyData *reqPtr, int8_t mallocCnt)
 {
     switch(mallocCnt)
@@ -353,13 +451,27 @@ void giveSemHttpGuard(void)
 
 
 
+/* The xParsingTask() function is used to handle the preparation of data
+** that will be used in each HTTP Reqeust. A state array of pointers to functions is used
+** to gather the correct data for each HTTP Request based on their ID, the ID value
+** passed via the Queue being used as the index which chooses the correct function. A
+** typedef struct requestBodyData is dynamically allocated and passed to these functions
+** to set and carry strings and their lengths needed for the Request. Once completed,
+** it is then passed on to the xQueueHTTP Queue.
+** 
+**
+** Parameters:
+**  none used
+**
+** Return:
+**  none
+**
+** Notes: Since these functions will generate further dynamic memory, if else statements
+** and a "counter-like" variable are used to determine the amount of heap that 
+** needs to be freed in the event of a failure.
+*/
 static void xParsingTask(void *pvParameters)
 {
-    while(xQueueParse == NULL) 
-    {
-        vTaskDelay(SEC_DELAY);
-    }
-
     while(true)
     {
         int8_t freeHeapCntr = NO_HEAP;

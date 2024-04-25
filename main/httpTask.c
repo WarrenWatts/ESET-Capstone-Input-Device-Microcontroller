@@ -242,8 +242,10 @@ static bool queuingUartTxData(cJSON *ptr, bool memSafe)
         if(!xQueueSendToBack(xQueueUartTx, (void*) &ptr, DEF_PEND))
         {
             ESP_LOGE(TAG, "%sxQueueUartTx%s", queueSendFail, rtrnNewLine);
+            xSemaphoreGive(xSemUartTxGuard);
             memSafe = false;
-        }   
+        }
+        /* Don't want memory freed if there is no failure! */  
     }
     else
     {

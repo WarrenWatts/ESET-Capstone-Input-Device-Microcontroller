@@ -38,7 +38,8 @@
 /* Function Declarations */
 extern void startUartConfig(void);
 extern bool getTimeBool(void);
-int32_t getAccessCode(void);
+extern int32_t getAccessCode(void);
+extern time_t getTime(void);
 
 /* Typedefs for Pointer to Function and Function */
 typedef char* (*printingFuncPtr)(cJSON *responsePtr);

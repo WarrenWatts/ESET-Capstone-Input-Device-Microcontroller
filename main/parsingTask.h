@@ -67,4 +67,6 @@ typedef enum
 typedef bool (*parsingFuncPtr)(requestBodyData* reqPtr);
 typedef bool (parsingFunc)(requestBodyData* reqPtr);
 
+typedef int_least64_t (*parsingGetFuncPtr)(void);
+
 #endif /* PARSINGTASK_H_*/
