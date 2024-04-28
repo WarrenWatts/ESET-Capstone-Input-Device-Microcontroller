@@ -10,7 +10,7 @@ One final thing to note is that in order to improve the robustness of the code, 
 - Handling the timeout and resetting of oneshot timers for sending HTTP Requests
 - Parsing data for body info in HTTP Requests
 - Handling HTTP Requests and Responses
-- Handling ESP-NOW RX and TX between ESP32s
+- Handling ESP-NOW RX and TX between ESP32s (protocol used to unlock the door)
 - Handling UART RX and TX between the ESP32 and a touchscreen device
 - Handling the ISR for a release button
 - Toggling the input device's LED
