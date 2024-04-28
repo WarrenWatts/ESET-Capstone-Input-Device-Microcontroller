@@ -16,4 +16,5 @@ One final thing to note is that in order to improve the robustness of the code, 
 - Toggling the input device's LED
 
 ## Notes
-This project was programmed in VS Code with the ESP-IDF extension. The device utilized was an ESP32-S3-DevKitC-1-N8R2.
+- This project was programmed in VS Code with the ESP-IDF extension. The device utilized was an ESP32-S3-DevKitC-1-N8R2.
+- The cJSON library was utilized and added directly into the project.
