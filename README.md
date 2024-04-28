@@ -1,13 +1,13 @@
 # Overview
 This is the code for the input device microcontroller created for my ESET Capstone team's project. Due to the numerous tasks taking place, this code makes use of the microcontroller's (an ESP32) Dual-core functionality. (All Wi-Fi related tasks are performed on Core 0 while all other tasks are performed on Core 1.)
 
-# Microcontroller Goals
+## Microcontroller Goals
 - Handling Wi-Fi connection, disconnection, and reconnection
 - Handling the timeout and resetting of oneshot timers for sending HTTP Requests
-- Data Parsing for info in HTTP Requests
+- Parsing data for body info in HTTP Requests
 - Handling HTTP Requests and Responses
 - Handling ESP-NOW RX and TX between ESP32s
-- UART RX and TX between the ESP32 and a touchscreen device
+- Handling UART RX and TX between the ESP32 and a touchscreen device
 - Handling the ISR for a release button
 - Toggling the input device's LED
 
