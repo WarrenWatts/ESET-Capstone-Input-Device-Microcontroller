@@ -1,35 +1,20 @@
-| Supported Targets | ESP32 | ESP32-C2 | ESP32-C3 | ESP32-C6 | ESP32-H2 | ESP32-S2 | ESP32-S3 |
-| ----------------- | ----- | -------- | -------- | -------- | -------- | -------- | -------- |
+# Overview
+This is the code for the input device microcontroller created for my ESET Capstone team's project. Due to the numerous tasks taking place, this code makes use of the microcontroller's (an ESP32) Dual-core functionality. (All Wi-Fi related tasks are performed on Core 0 while all other tasks are performed on Core 1.)
 
-# _Sample project_
+The code for the microncontroller is thoroughly documented and thus I recommend reading through it to get a better understanding of what all is going on. A list of the overall goals of the code/this microcontroller is provided below.
 
-(See the README.md file in the upper level 'examples' directory for more information about examples.)
+One final thing to note is that in order to improve the robustness of the code, numerous redundancy checks and logging statements were added.
 
-This is the simplest buildable example. The example is used by command `idf.py create-project`
-that copies the project to user specified path and set it's name. For more information follow the [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project)
+## Microcontroller Goals
+- Handling Wi-Fi connection, disconnection, and reconnection
+- Handling the timeout and resetting of oneshot timers for sending HTTP Requests
+- Parsing data for body info in HTTP Requests
+- Handling HTTP Requests and Responses
+- Handling ESP-NOW RX and TX between ESP32s (protocol used to unlock the door)
+- Handling UART RX and TX between the ESP32 and a touchscreen device
+- Handling the ISR for a release button
+- Toggling the input device's LED
 
-
-
-## How to use example
-We encourage the users to use the example as a template for the new projects.
-A recommended way is to follow the instructions on a [docs page](https://docs.espressif.com/projects/esp-idf/en/latest/api-guides/build-system.html#start-a-new-project).
-
-## Example folder contents
-
-The project **sample_project** contains one source file in C language [main.c](main/main.c). The file is located in folder [main](main).
-
-ESP-IDF projects are built using CMake. The project build configuration is contained in `CMakeLists.txt`
-files that provide set of directives and instructions describing the project's source files and targets
-(executable, library, or both). 
-
-Below is short explanation of remaining files in the project folder.
-
-```
-├── CMakeLists.txt
-├── main
-│   ├── CMakeLists.txt
-│   └── main.c
-└── README.md                  This is the file you are currently reading
-```
-Additionally, the sample project contains Makefile and component.mk files, used for the legacy Make based build system. 
-They are not used or needed when building with CMake and idf.py.
+## Notes
+- This project was programmed in VS Code with the ESP-IDF extension. The device utilized was an ESP32-S3-DevKitC-1-N8R2.
+- The cJSON library was utilized and added directly into the project.
