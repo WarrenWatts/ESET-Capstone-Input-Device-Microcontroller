@@ -111,22 +111,10 @@ static SemaphoreHandle_t xMtxAccessCode;
 static SemaphoreHandle_t xMtxParanoid;
 static QueueHandle_t xQueueUartRx;
 
-/* FreeRTOS Reference API Handles */
-extern QueueHandle_t xQueueUartTx;
-extern SemaphoreHandle_t xMtxEspnow;
-extern SemaphoreHandle_t xSemEspnow;
-
-/* Reference Declarations of Global Constant Strings */
-extern const char mallocFail[MALLOC_LEN];
-extern const char heapFail[HEAP_LEN];
-extern const char mtxFail[MTX_LEN];
-extern const char rtrnNewLine[NEWLINE_LEN];
-
 /* Local String Constants */
 static const char TAG1[TAG_LEN_8] = "UART_RX";
 static const char TAG2[TAG_LEN_8] = "UART_TX";
 static const char noRsvStr[RSVTION_LEN] = "Reservation";
-
 
 /* Boolean for System Time if Set */
 static bool timeSetBool = false;

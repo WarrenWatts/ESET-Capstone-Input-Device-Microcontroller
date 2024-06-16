@@ -1,7 +1,7 @@
 {
     "version":            "1",
     "project_name":       "input-device-code-redux",
-    "project_version":    "1",
+    "project_version":    "9da7c40-dirty",
     "project_path":       "C:/Users/wcwat/input-device-code-redux",
     "idf_path":           "C:/Users/wcwat/esp/esp-idf",
     "build_dir":          "C:/Users/wcwat/input-device-code-redux/build",

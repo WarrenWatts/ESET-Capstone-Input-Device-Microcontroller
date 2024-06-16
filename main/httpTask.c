@@ -77,22 +77,12 @@ static esp_err_t postRespHndlr(esp_http_client_event_handle_t event);
 /* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xSemUartTxGuard;
 
-/* FreeRTOS Reference API Handles */
-extern QueueHandle_t xQueueHttp;
-
 /* FreeRTOS Defining API Handles */
 QueueHandle_t xQueueUartTx;
 
 /* ESP Timer Handles */
 static esp_timer_handle_t reserveRequest;
 static esp_timer_handle_t timeRequest;
-
-/* Reference Declarations of Global Constant Strings */
-extern const char rtrnNewLine[NEWLINE_LEN];
-extern const char heapFail[HEAP_LEN];
-extern const char mtxFail[MTX_LEN];
-extern const char queueSendFail[SEND_FAIL_LEN];
-extern const char queueFullFail[FULL_FAIL_LEN];
 
 /* Local Constant Logging String */
 static const char TAG[TAG_LEN_9] = "ESP_HTTP";

@@ -53,15 +53,6 @@ static void startLedRtosConfig(void);
 /* FreeRTOS Local API Handles */
 static SemaphoreHandle_t xSemLed;
 
-/* FreeRTOS Reference API Handles */
-extern SemaphoreHandle_t xMtxEspnow;
-extern SemaphoreHandle_t xSemEspnow;
-
-/* Reference Declarations of Global Constant Strings */
-extern const char rtrnNewLine[NEWLINE_LEN];
-extern const char heapFail[HEAP_LEN];
-extern const char mtxFail[MTX_LEN];
-
 /* Static Constant Logging String */
 static const char TAG[TAG_LEN_8] = "ESP_LED";
 

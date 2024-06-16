@@ -69,11 +69,6 @@ static SemaphoreHandle_t xSemWifiStatus;
 static SemaphoreHandle_t xSemDisconnect;
 static SemaphoreHandle_t xMtxConnectCnt;
 
-/* Reference Declarations of Global Constant Strings */
-extern const char heapFail[HEAP_LEN];
-extern const char mtxFail[MTX_LEN];
-extern const char rtrnNewLine[NEWLINE_LEN];
-
 /* Local Constant Logging String */
 static const char TAG[TAG_LEN_9] = "ESP_WIFI";
 

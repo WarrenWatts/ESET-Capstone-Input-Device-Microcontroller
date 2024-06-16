@@ -70,11 +70,6 @@ SemaphoreHandle_t xSemEspnow;
 /* ESPNOW Peer Handle */
 static esp_now_peer_info_t receiverInfo;
 
-/* Reference Declarations of Global Constant Strings */
-extern const char rtrnNewLine[NEWLINE_LEN];
-extern const char heapFail[HEAP_LEN];
-extern const char mtxFail[MTX_LEN];
-
 /* Local Constant Logging String */
 static const char TAG[TAG_LEN_8] = "ESP_NOW";
 

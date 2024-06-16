@@ -27,7 +27,8 @@
         "condition_variable": "c",
         "ctime": "c",
         "mutex": "c",
-        "uart.h": "c"
+        "uart.h": "c",
+        "task.h": "c"
     },
     "idf.flashType": "UART",
     "idf.portWin": "COM8"

@@ -63,7 +63,7 @@ typedef enum
     PARSE_CODE_LEN = 18,
     DEF_RSV_LEN = 21,
     DEF_CODE_LEN = 25,
-    URL_LEN,
+    URL_LEN = 31,
     EARLY_FAIL_LEN = 32,
 } localStrLengths;
 
@@ -82,12 +82,6 @@ static QueueHandle_t xQueueParse;
 
 /* FreeRTOS Defining API Handles */
 QueueHandle_t xQueueHttp;
-
-/* Reference Declarations of Global Constant Strings */
-extern const char mallocFail[MALLOC_LEN];
-extern const char rtrnNewLine[NEWLINE_LEN];
-extern const char heapFail[HEAP_LEN];
-extern const char mtxFail[MTX_LEN];
 
 /* Defining Declarations of Global Constant Strings */
 const char queueSendFail[SEND_FAIL_LEN] = "Could not send to ";
